@@ -1,0 +1,81 @@
+m255
+K3
+13
+cModel Technology
+Z0 dD:\code2\hardware\CPU\zh\group\cpu_fibo\prj\simulation\qsim
+vcpu_fibo
+Z1 !s100 n=NJ9aG2EoQ;0bKNn;T0F0
+Z2 IB2WUjY[l80l<M5@:6c=BN1
+Z3 VfKN`>H`LKleJQ;c8SGK4o2
+Z4 dD:\code2\hardware\CPU\zh\group\cpu_fibo\prj\simulation\qsim
+Z5 w1763280957
+Z6 8cpu_fibo.vo
+Z7 Fcpu_fibo.vo
+L0 31
+Z8 OV;L;10.1d;51
+r1
+31
+Z9 !s90 -work|work|cpu_fibo.vo|
+Z10 o-work work -O0
+!i10b 1
+!s85 0
+Z11 !s108 1763280961.465000
+Z12 !s107 cpu_fibo.vo|
+!s101 -O0
+vcpu_fibo_vlg_check_tst
+!i10b 1
+Z13 !s100 gbB34e;E4OEz_AChOGV:L3
+Z14 I0IJKQzLB:<_UUb8DWfkjM1
+Z15 VFDcJiP3X1AMDGnJO^afdM2
+R4
+Z16 w1763280955
+Z17 8cpu_fibo.vt
+Z18 Fcpu_fibo.vt
+L0 59
+R8
+r1
+!s85 0
+31
+Z19 !s108 1763280961.840000
+Z20 !s107 cpu_fibo.vt|
+Z21 !s90 -work|work|cpu_fibo.vt|
+!s101 -O0
+R10
+vcpu_fibo_vlg_sample_tst
+!i10b 1
+Z22 !s100 n2ZXb0m:kY:8_QM7W3?ZV1
+Z23 IHO;I621:gNP<:>@Oclhb>0
+Z24 VATXLABfSKbZIm[nEdGmbB0
+R4
+R16
+R17
+R18
+L0 29
+R8
+r1
+!s85 0
+31
+R19
+R20
+R21
+!s101 -O0
+R10
+vcpu_fibo_vlg_vec_tst
+!i10b 1
+Z25 !s100 =k>_>AJ`3Rm_kX]j:CO?b1
+Z26 IIf5c>jz40=Hg7k<XV_XG90
+Z27 Vk?89`VbO@OASzozZ1Ac_i1
+R4
+R16
+R17
+R18
+Z28 L0 4349
+R8
+r1
+!s85 0
+31
+R19
+R20
+R21
+!s101 -O0
+R10

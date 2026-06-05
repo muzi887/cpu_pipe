@@ -1,0 +1,118 @@
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all; -- for arithmetic and conversions
+
+entity microController is
+    port(
+			clk: in std_logic;        --System Clock
+			rst: in std_logic;        --System reset(active-low)
+			
+			-- INPUTS from datapath (IR_opCode <- RAM)
+			IR_opCode: in std_logic_vector(3 downto 0);
+			-- INPUTS from the datapath (CX)
+			PSW_Z_flag: in std_logic;
+			
+			-- OUTPUT to the datapath
+			nextAddress: out std_logic_vector(4 downto 0);
+			microCommands: out std_logic_vector(32 downto 0)
+			);
+end microController;
+
+architecture behav_microController of microController is
+	signal uAR_reg, next_uAR: unsigned(4 downto 0); --micro program counter;point to nextAddress
+	signal uIR_reg: std_logic_vector(32 downto 0);
+	signal cm_output: std_logic_vector(32 downto 0); -- The data coming out of the CM
+
+	-- 1.CM
+	-- a COMBINATIONAL block. Address in ->Data out.
+	type microInstructions_code is array(32 downto 0) of std_logic_vector(31 downto 0);
+	-- signal reg: microInstructions_code;
+	-- signal data: std_logic_vector(31 downto 0);
+	constant CM_ROM: microInstructions_code:= (
+        0  => "010000000000000000000001110000001", -- SEQ, Next Address: 1
+        1  => "001000000000100000010001110000010", -- SEQ, Next Address: 2
+        2  => "000100000000000010000001110000011", -- SEQ, Next Address: 3
+        3  => "000000000000000100000001111000000", -- MAP (from OpCode), Next Address: irrelevant (use 0000, xxxx is OK, too)
+        -- Instruction Execution Rountines
+		  	4  => "011000000000100000010001110010100", 		-- LOAD BX, then JUMP to address 4+16=20
+        5  => "011000000000100000010001110010101", 	-- LOAD CX, then JUMP to address 5+16=21
+        6  => "011000000000101010010001110010110", 	-- MOVE AC,[BX], then JUMP to address 6+16=22
+        7  => "000000000100000000000001110000000", 	-- INC AX, then JUMP to address 0
+        8	 => "000000000010000000000001110000000", 	-- INC BX, then JUMP to address 0
+        9  => "000000100000001010000001110000000", 	-- MOVE AX,BX, then JUMP to address 0
+		    10 => "011000000000101010010001110011010", 	-- ADD AC,[BX], then JUMP to address 10+16=26
+        11 => "001000000000000110001001110011011",  -- STORE AC, then JUMP to address 11+16=27
+        12 => "000001000001000000000001110000000", 	-- DEC CX, then JUMP to address 0
+        13 => "000000000000000000000001110111101", 	-- JNZ check, if Z=1(is Zero) jump to 13+16=29, else jump to 0
+        -- End of Rountines - Jump back to fetch(address 0)
+        20 => "000000010000000010000001110000000",	-- JUMP to address 0(End of LOAD BX routine)
+        21 => "000000001000000010000001110000000",	-- JUMP to address 0(End of LOAD CX routine)
+        22 => "000000100000000010000011110000000",	-- JUMP to address 0(End of MOVE AC,[BX] routine)
+        26 => "000010000000000010000100000000000",	-- JUMP to address 0(End of ADD AC,[BX] routine)
+        27 => "010000000000011000000001110000000",	-- JUMP to address 0(End of STORE AC routine)
+        29 => "100000000000000000100001110000000",	-- JUMP to address 0(End of LOAD routine)
+        others => (others => '0')
+	);
+	
+begin
+	-- The ROM "read" process.
+	cm_output <= CM_ROM(to_integer(uAR_reg));
+	
+	-- 2. State Registers: uAR and uIR
+	-- the only SEQUENTIAL (clocked) process. It updatas the state.
+	State_Updata_Process: process (clk,rst)	
+	begin
+		if rst='0' then
+			uAR_reg <= (others => '0'); 
+			uIR_reg <= (others => '0');
+		elsif rising_edge(clk) then
+				uAR_reg <= next_uAR;
+				uIR_reg <= cm_output;	-- Load the microInstructionsfrom the CM into uIR;
+		end if;
+	end process;
+	
+	-- 3. microAddress formation circuit
+	-- a COMBINATIONAL process that decides the next microAddress
+	-- use the current state from the current microInstructions in uIR
+	Next_Address_Logic: process (uIR_reg,uAR_reg,PSW_Z_flag,IR_opcode)	
+		-- Extract control fields from the current microInstruction in uIR
+		alias branch_conditions: std_logic_vector(1 downto 0) is uIR_reg(6 downto 5);
+		alias next_address_field:unsigned(4 downto 0) is unsigned(uIR_reg(4 downto 0));
+	begin
+		-- default case is to go to the next instruction sequentially
+		-- default case to prevent latches, though our logic should cover all case.
+		next_uAR <= uAR_reg;
+		case branch_conditions is
+			when "00" => -- Unconditional Jump  
+				next_uAR <= next_address_field; -- use the nextAddress in the microInstrction directly
+			when "01" =>   -- Conditional Branch (Jump on not Zero)
+				if PSW_Z_flag = '0' then -- Z flag is '0', so result is not Zero. Then jump to 29.
+					next_uAR <= next_address_field; 
+				else
+					next_uAR <= to_unsigned(0,5); -- Z flag is '1',jump to 0,continue to loop
+				end if;
+			when "10" =>     -- Map from OpCode to microController start address
+				case IR_opcode is				
+					when "0000" => next_uAR <= to_unsigned(8,5);     -- LOAD BX starts at address 4
+					when "0001" => next_uAR <= to_unsigned(9,5);     -- LOAD CX starts at address 5
+					when "0010" => next_uAR <= to_unsigned(10,5);    -- MOVE AC starts at address 6
+					when "0011" => next_uAR <= to_unsigned(11,5);    -- INC AX starts at address 7
+					when "0100" => next_uAR <= to_unsigned(12,5);    -- INC BX starts at address 8
+					when "0101" => next_uAR <= to_unsigned(17,5);    -- MOVE AX,BX starts at address 9
+					when "0110" => next_uAR <= to_unsigned(18,5);    -- ADD AC,[BX] starts at address 10
+					when "0111" => next_uAR <= to_unsigned(12,5);    -- STORE AC starts at address 11
+					when "1000" => next_uAR <= to_unsigned(17,5);    -- DEC CX starts at address 12
+					when "1001" => next_uAR <= to_unsigned(18,5);    -- JNZ starts at address 13
+					when others => next_uAR <= (others => '0');    	 -- Default / Error case
+				end case;
+			when others =>
+				next_uAR <= (others => '0'); 
+		end case;
+	end process;
+	
+	-- 4. Decoder
+	-- a simple COMBINATIONAL block that send commands to the datapath
+	-- extracts the command filed from the current microInstrction
+	microCommands <= uIR_reg(32 downto 7);
+	nextAddress <= std_logic_vector(next_uAR);	
+end behav_microController;

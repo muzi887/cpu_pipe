@@ -1,0 +1,74 @@
+-- main_memory
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity main_memory is
+	generic(
+		ADDR_WIDTH:integer:=16; -- 16位地址 -> 2^16 = 65536 个存储位置
+		DATA_WIDTH:integer:=16  -- 16位数据 (存放指令和数据)
+	);
+	port(
+			clk				 : in 	std_logic;
+			addr		   : in  	std_logic_vector(ADDR_WIDTH - 1 downto 0);   -- 地址输入：from MAR
+			data_in    : in  	std_logic_vector(DATA_WIDTH - 1 downto 0);   -- 要写入的数据：from MDR	
+    	write_en   : in  	std_logic;      --写使能端, '1' 表示在下一个时钟沿写入
+			data_out 	 : out 	std_logic_vector(DATA_WIDTH - 1 downto 0);   -- 读出的数据：to MDR	
+		);
+end entity main_memory;
+
+architecture behav_main_memory of main_memory is
+	
+	-- 1. 定义RAM的存储阵列类型	
+	-- 深度由地址宽度决定
+	constant RAM_DEPTH: integer:=2**ADDR_WIDTH; -- ** 是指数运算符（幂运算）
+  type ram_array_t is array(0 to RAM_DEPTH - 1) of std_logic_vector(DATA_WIDTH - 1 downto 0);
+
+	-- 2. 声明存储阵列 (内存本身)
+	-- 声明一个 signal 并使用 ' := ' 语法来赋初始值
+	signal memory_array: ram_array_t:=(
+		0  => "0000" & x"00A", -- 0: LOAD BX, #10 (立即数10)
+		1  => "0001" & x"009", -- 1: LOAD CX, Mem[9] (n-2)
+		2  => "0010000000000000", -- 2: LOOP: MOVE AC,[BX]
+		3  => "0100000000000000", -- 3: INC BX
+		4  => "0101000000000000", -- 4: MOVE AX, BX
+		5  => "0110000000000000", -- 5: ADD AC,[BX]
+		6  => "0011000000000000", -- 6: INC AX
+		7  => "0111000000000000", -- 7: STORE AC, [AX]
+		8  => "1000000000000000", -- 8: DEC CX
+		9  => "1001" & x"002", -- 9: JNZ LOOP (跳转到地址 2)
+		10 => x"0001", -- 10: f1 = 1 
+		11 => x"0001", -- 11: f2 = 1
+		-- 12: f3 将被程序写入这里
+		-- 13: f4 将被程序写入这里
+		-- ...
+
+		-- 将所有其他未定义的内存地址初始化为 0
+		others => (others => '0')
+	);
+
+	-- 内部信号，用于地址转换
+	signal addr_int: integer range 0 to RAM_DEPTH - 1;
+
+begin
+
+	-- 把 std_logic_vector 类型的地址转换为整数，以便数组索引
+	addr_int <= to_integer(unsigned(addr));
+
+	-- 3.写入逻辑（同步）
+	write_process: process(clk)
+	begin
+		if rising_edge(clk) then
+			if write_en = '1' then
+			-- 在时钟上升沿，如果写使能为高，
+      -- 就把 data_in 的数据写入 addr 指定的位置。
+				memory_array(addr_int) <= data_in;
+			end if;
+		end if;
+	end process write_process;
+
+	-- 4.读取逻辑（异步）
+	-- addr 信号的任何变化都会立即导致 data_out 更新
+	data_out <= memory_array(addr_int);
+
+end architecture behav_main_memory;

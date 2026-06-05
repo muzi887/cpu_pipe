@@ -1,0 +1,178 @@
+-- datapath.vhd
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity datapath is
+  generic(
+    ADDR_WIDTH:integer:=16; -- 地址宽度
+    DATA_WIDTH:integer:=16  -- 数据/指令宽度
+  );
+  port(
+    clk: in std_logic;
+    rst: in std_logic;
+
+    -- micro-instruction (MSB downto LSB = 32 downto 0)
+    microCommands:  in std_logic_vector(32 downto 0);
+    -- main memory interface
+    data_from_ram:  in std_logic_vector(DATA_WIDTH - 1 downto 0);
+
+    -- states back to microController 
+    IR_opCode_out:  out std_logic_vector(3 downto 0); -- 10 instructions
+    PSW_Z_flag_out: out std_logic;
+    -- memory signals
+    address_to_ram: out std_logic_vector(ADDR_WIDTH - 1 downto 0);
+    data_to_ram:    out std_logic_vector(DATA_WIDTH - 1 downto 0);
+    ram_read_en:    out std_logic;
+    ram_write_en:   out std_logic
+  );
+end entity datapath;
+
+architecture behav_datapath of behav_datapath is
+  -- 1. alias 映射:定义微指令信号别名
+  alias LoadPC      : std_logic is microCommands(32);
+  alias LoadMAR     : std_logic is microCommands(31);
+  alias LoadMDR     : std_logic is microCommands(30);
+  alias LoadIR      : std_logic is microCommands(29);
+  alias LoadAC      : std_logic is microCommands(28);
+  alias LoadPSW     : std_logic is microCommands(27);
+  alias LoadAX      : std_logic is microCommands(26);
+  alias LoadBX      : std_logic is microCommands(25);
+  alias LoadCX      : std_logic is microCommands(24);
+  alias IncAX       : std_logic is microCommands(23);
+  alias IncBX       : std_logic is microCommands(22);
+  alias DecCX       : std_logic is microCommands(21);
+  alias MemR        : std_logic is microCommands(20);
+  alias MemW        : std_logic is microCommands(19);
+  
+  alias Bus_Sel     : std_logic_vector(2 downto 0) is microCommands(18 downto 16);
+  alias PC_Sel      : std_logic_vector(1 downto 0) is microCommands(15 downto 14);
+  alias MDR_Sel     : std_logic_vector(1 downto 0) is microCommands(13 downto 12);
+  alias AC_Sel      : std_logic_vector(1 downto 0) is microCommands(11 downto 10);
+  alias ALU_op      : std_logic_vector(2 downto 0) is microCommands(9 downto 7);
+  alias SHIFT       : std_logic_vector(1 downto 0) is microCommands(6 downto 5);
+  alias NextAddress : std_logic_vector(1 downto 0) is microCommands(4 downto 0);
+
+  -- 2.声明所有寄存器
+  signal PC_reg,PC_next     : unsigned(ADDR_WIDTH - 1 downto 0);
+  signal PC_incremented     : unsigned(ADDR_WIDTH - 1 downto 0); 
+  signal MAR_reg            : unsigned(ADDR_WIDTH - 1 downto 0);
+  signal MDR_reg, MDR_next  : unsigned(DATA_WIDTH - 1 downto 0);
+  signal IR_reg             : std_logic_vector(DATA_WIDTH - 1 downto 0); 
+  signal AC_reg, AC_next    : unsigned(DATA_WIDTH - 1 downto 0);
+  signal ALU_out            : unsigned(DATA_WIDTH - 1 downto 0);
+  signal ALU_A              : unsigned(DATA_WIDTH - 1 downto 0);
+  signal ALU_B              : unsigned(DATA_WIDTH - 1 downto 0);
+  signal PSW_Z_flag         : std_logic;
+  signal AX_reg             : unsigned(DATA_WIDTH - 1 downto 0); 
+  signal BX_reg             : unsigned(DATA_WIDTH - 1 downto 0);
+  signal CX_reg             : unsigned(DATA_WIDTH - 1 downto 0);
+
+  -- 3.声明ALU和总线信号
+  signal ALU_out     : unsigned(DATA_WIDTH - 1 downto 0);
+  signal ALU_Z_flag  : std_logic;
+  signal internal_bus: unsigned(DATA_WIDTH - 1 downto 0);
+
+begin
+  -- 3.总线驱动/仲裁逻辑（内部总线MUX）
+  Bus_Drivers: process(PC_reg,MDR_reg,IR_reg,AC_reg,AX_reg,BX_reg,CX_reg)
+  begin
+    with Bus_Sel select
+      internal_bus <= PC_reg    when "000",
+                      MDR_reg   when "001",
+                      IR_reg    when "010",
+                      AC_reg    when "011",
+                      AX_reg    when "100",
+                      BX_reg    when "101",
+                      CX_reg    when "110",
+                      (others => '0') when others;
+  end process Bus_Drivers;
+
+  -- 4.寄存器时序逻辑
+  Reg_Process: process(clk,rst)
+  begin
+    if rst = '0' then 
+      PC_reg <=  (others => '0');
+      MAR_reg <= (others => '0');
+      MDR_reg <= (others => '0');
+      IR_reg <=  (others => '0');
+      AC_reg <=  (others => '0');
+      AX_reg <=  (others => '0');
+      BX_reg <=  (others => '0');
+      CX_reg <=  (others => '0');
+    elsif rising_edge(clk) then
+      if LoadPC   = '1'   then PC_reg <= PC_next; end if;
+      if LoadMAR  = '1'   then MAR_reg <= std_logic_vector(internal_bus); end if;
+      if LoadMDR  = '1'   then MDR_reg <= MDR_next; end if;
+      if LoadIR   = '1'   then IR_reg <= std_logic_vector(internal_bus); end if; -- 位扩展，from ROM
+      if LoadAC   = '1'   then AC_reg <= AC_next; end if;
+      if LoadPSW  = '1'   then PSW_Z_flag <= CX_Z_flag; end if;
+      if LoadAX   = '1'   then 
+        AX_reg <= unsigned(internal_bus); 
+      elsif IncAX = '1'   then
+        AX_reg <= AX_reg + 1;
+      if LoadBX   = '1'   then 
+        BX_reg <= unsigned(internal_bus); 
+      elsif IncBX = '1'   then
+        BX_reg <= BX_reg + 1; 
+      end if;
+      if LoadCX   = '1'   then 
+        CX_reg <= unsigned(internal_bus); 
+      elsif DecCX = '1'   then
+        CX_reg <= CX_reg - 1; 
+      end if;
+      CX_Z_flag <= '1' when CX_reg = 0 else '0';
+    end if;
+  end process Reg_Process; 
+
+  -- 5.组合逻辑
+
+  -- PC_Sel: 根据PC_Sel选择PC_next
+  PC_incremented <= PC_reg + 1; 
+  with PC_Sel select
+  PC_next <= PC_incremented           when '00', -- default: PC + 1
+             unsigned(internal_bus)   when '01', 
+             PC_incremented            when others;  
+
+  -- MDR_Sel 的逻辑 
+  with MDR_Sel select
+    MDR_next <= unsigned(internal_bus) when "01",      -- 从总线加载 
+                data_from_ram         when "10",      -- 从 RAM 加载 (f3,f4,...)
+                (others => '0')       when others;
+
+  -- AC_Sel: 根据AC_Sel选择AC_next
+  with AC_Sel select
+  AC_next <= unsigned(internal_bus) when "01",      -- 从总线加载 
+             ALU_out                when "10",      -- 从 ALU 加载 
+             (others => '0')        when others;
+
+ 
+  -- ALU 组合逻辑（支持 ADD,  INC_AX, DEC_CX）
+  ALU_A <= AC_reg;
+  ALU_B <= internal_bus;
+  ALU_Logic: process(ALU_A, ALU_B, ALU_op)
+  begin
+    case ALU_op is
+      when "000" => -- ADD
+        ALU_out <= ALU_A + ALU_B;
+      when "001" => -- SUB
+        ALU_out <= ALU_A - ALU_B;
+      when "010" => -- AND
+        ALU_out <= ALU_A AND ALU_B;
+      when others =>
+        ALU_out <= (others => '0');
+    end case;
+  end process ALU_Logic;
+            
+  -- 6.连接输出
+  -- 将内部信号连接到实体端口
+  address_to_ram <= std_logic_vector(MAR_reg)        ;
+  data_to_ram    <= std_logic_vector(MDR_reg);
+  ram_read_en    <= MemR;
+  ram_write_en   <= MemW;
+
+  -- 把状态反馈给控制器 microController
+  IR_opCode_out  <= data_from_ram(15 downto 12);
+  PSW_Z_flag_out <= PSW_Z_flag; 
+
+end architecture behav_datapath;

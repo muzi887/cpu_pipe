@@ -1,0 +1,1 @@
+ Branch if Not Equal：两寄存器不等就按 相对偏移 跳转。

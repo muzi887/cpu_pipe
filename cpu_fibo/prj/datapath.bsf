@@ -1,0 +1,192 @@
+/*
+WARNING: Do NOT edit the input and output ports in this file in a text
+editor if you plan to continue editing the block that represents it in
+the Block Editor! File corruption is VERY likely to occur.
+*/
+/*
+Copyright (C) 1991-2013 Altera Corporation
+Your use of Altera Corporation's design tools, logic functions 
+and other software and tools, and its AMPP partner logic 
+functions, and any output files from any of the foregoing 
+(including device programming or simulation files), and any 
+associated documentation or information are expressly subject 
+to the terms and conditions of the Altera Program License 
+Subscription Agreement, Altera MegaCore Function License 
+Agreement, or other applicable license agreement, including, 
+without limitation, that your use is for the sole purpose of 
+programming logic devices manufactured by Altera and sold by 
+Altera or its authorized distributors.  Please refer to the 
+applicable agreement for further details.
+*/
+(header "symbol" (version "1.1"))
+(symbol
+	(rect 16 16 424 352)
+	(text "datapath" (rect 5 0 38 12)(font "Arial" ))
+	(text "inst" (rect 8 320 20 332)(font "Arial" ))
+	(port
+		(pt 0 32)
+		(input)
+		(text "clk" (rect 0 0 10 12)(font "Arial" ))
+		(text "clk" (rect 21 27 31 39)(font "Arial" ))
+		(line (pt 0 32)(pt 16 32)(line_width 1))
+	)
+	(port
+		(pt 0 48)
+		(input)
+		(text "rst" (rect 0 0 10 12)(font "Arial" ))
+		(text "rst" (rect 21 43 31 55)(font "Arial" ))
+		(line (pt 0 48)(pt 16 48)(line_width 1))
+	)
+	(port
+		(pt 0 64)
+		(input)
+		(text "microCommands[microinstruct_width-1..0]" (rect 0 0 166 12)(font "Arial" ))
+		(text "microCommands[microinstruct_width-1..0]" (rect 21 59 187 71)(font "Arial" ))
+		(line (pt 0 64)(pt 16 64)(line_width 3))
+	)
+	(port
+		(pt 0 80)
+		(input)
+		(text "data_from_ram[data_width-1..0]" (rect 0 0 127 12)(font "Arial" ))
+		(text "data_from_ram[data_width-1..0]" (rect 21 75 148 87)(font "Arial" ))
+		(line (pt 0 80)(pt 16 80)(line_width 3))
+	)
+	(port
+		(pt 408 32)
+		(output)
+		(text "debug_LoadPC" (rect 0 0 62 12)(font "Arial" ))
+		(text "debug_LoadPC" (rect 325 27 387 39)(font "Arial" ))
+		(line (pt 408 32)(pt 392 32)(line_width 1))
+	)
+	(port
+		(pt 408 48)
+		(output)
+		(text "debug_PC_reg[data_width-1..0]" (rect 0 0 123 12)(font "Arial" ))
+		(text "debug_PC_reg[data_width-1..0]" (rect 264 43 387 55)(font "Arial" ))
+		(line (pt 408 48)(pt 392 48)(line_width 3))
+	)
+	(port
+		(pt 408 64)
+		(output)
+		(text "debug_AX_reg[data_width-1..0]" (rect 0 0 125 12)(font "Arial" ))
+		(text "debug_AX_reg[data_width-1..0]" (rect 262 59 387 71)(font "Arial" ))
+		(line (pt 408 64)(pt 392 64)(line_width 3))
+	)
+	(port
+		(pt 408 80)
+		(output)
+		(text "debug_BX_reg[data_width-1..0]" (rect 0 0 122 12)(font "Arial" ))
+		(text "debug_BX_reg[data_width-1..0]" (rect 265 75 387 87)(font "Arial" ))
+		(line (pt 408 80)(pt 392 80)(line_width 3))
+	)
+	(port
+		(pt 408 96)
+		(output)
+		(text "debug_CX_reg[data_width-1..0]" (rect 0 0 123 12)(font "Arial" ))
+		(text "debug_CX_reg[data_width-1..0]" (rect 264 91 387 103)(font "Arial" ))
+		(line (pt 408 96)(pt 392 96)(line_width 3))
+	)
+	(port
+		(pt 408 112)
+		(output)
+		(text "debug_Bus_Sel[2..0]" (rect 0 0 82 12)(font "Arial" ))
+		(text "debug_Bus_Sel[2..0]" (rect 305 107 387 119)(font "Arial" ))
+		(line (pt 408 112)(pt 392 112)(line_width 3))
+	)
+	(port
+		(pt 408 128)
+		(output)
+		(text "debug_internal_bus[data_width-1..0]" (rect 0 0 139 12)(font "Arial" ))
+		(text "debug_internal_bus[data_width-1..0]" (rect 248 123 387 135)(font "Arial" ))
+		(line (pt 408 128)(pt 392 128)(line_width 3))
+	)
+	(port
+		(pt 408 144)
+		(output)
+		(text "IR_opCode_out[3..0]" (rect 0 0 84 12)(font "Arial" ))
+		(text "IR_opCode_out[3..0]" (rect 303 139 387 151)(font "Arial" ))
+		(line (pt 408 144)(pt 392 144)(line_width 3))
+	)
+	(port
+		(pt 408 160)
+		(output)
+		(text "PSW_Z_flag_out" (rect 0 0 73 12)(font "Arial" ))
+		(text "PSW_Z_flag_out" (rect 314 155 387 167)(font "Arial" ))
+		(line (pt 408 160)(pt 392 160)(line_width 1))
+	)
+	(port
+		(pt 408 176)
+		(output)
+		(text "address_to_ram[addr_width-1..0]" (rect 0 0 130 12)(font "Arial" ))
+		(text "address_to_ram[addr_width-1..0]" (rect 257 171 387 183)(font "Arial" ))
+		(line (pt 408 176)(pt 392 176)(line_width 3))
+	)
+	(port
+		(pt 408 192)
+		(output)
+		(text "data_to_ram[data_width-1..0]" (rect 0 0 114 12)(font "Arial" ))
+		(text "data_to_ram[data_width-1..0]" (rect 273 187 387 199)(font "Arial" ))
+		(line (pt 408 192)(pt 392 192)(line_width 3))
+	)
+	(port
+		(pt 408 208)
+		(output)
+		(text "ram_write_en" (rect 0 0 55 12)(font "Arial" ))
+		(text "ram_write_en" (rect 332 203 387 215)(font "Arial" ))
+		(line (pt 408 208)(pt 392 208)(line_width 1))
+	)
+	(port
+		(pt 408 224)
+		(output)
+		(text "debug_PC_next[data_width-1..0]" (rect 0 0 127 12)(font "Arial" ))
+		(text "debug_PC_next[data_width-1..0]" (rect 260 219 387 231)(font "Arial" ))
+		(line (pt 408 224)(pt 392 224)(line_width 3))
+	)
+	(port
+		(pt 408 240)
+		(output)
+		(text "debug_PC_Sel[1..0]" (rect 0 0 79 12)(font "Arial" ))
+		(text "debug_PC_Sel[1..0]" (rect 308 235 387 247)(font "Arial" ))
+		(line (pt 408 240)(pt 392 240)(line_width 3))
+	)
+	(port
+		(pt 408 256)
+		(output)
+		(text "debug_AC_reg[data_width-1..0]" (rect 0 0 126 12)(font "Arial" ))
+		(text "debug_AC_reg[data_width-1..0]" (rect 261 251 387 263)(font "Arial" ))
+		(line (pt 408 256)(pt 392 256)(line_width 3))
+	)
+	(port
+		(pt 408 272)
+		(output)
+		(text "debug_MDR_Sel[1..0]" (rect 0 0 89 12)(font "Arial" ))
+		(text "debug_MDR_Sel[1..0]" (rect 298 267 387 279)(font "Arial" ))
+		(line (pt 408 272)(pt 392 272)(line_width 3))
+	)
+	(port
+		(pt 408 288)
+		(output)
+		(text "debug_IR_reg[data_width-1..0]" (rect 0 0 121 12)(font "Arial" ))
+		(text "debug_IR_reg[data_width-1..0]" (rect 266 283 387 295)(font "Arial" ))
+		(line (pt 408 288)(pt 392 288)(line_width 3))
+	)
+	(parameter
+		"ADDR_WIDTH"
+		"16"
+		""
+		(type "PARAMETER_SIGNED_DEC")	)
+	(parameter
+		"DATA_WIDTH"
+		"16"
+		""
+		(type "PARAMETER_SIGNED_DEC")	)
+	(parameter
+		"MICROINSTRUCT_WIDTH"
+		"32"
+		""
+		(type "PARAMETER_SIGNED_DEC")	)
+	(drawing
+		(rectangle (rect 16 16 392 320)(line_width 1))
+	)
+	(annotation_block (parameter)(rect 424 -64 524 16))
+)
