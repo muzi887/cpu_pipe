@@ -79,7 +79,7 @@ architecture rtl of cpu_top is
       mem_read    : out std_logic;
       mem_write   : out std_logic;
       mem_to_reg  : out std_logic;
-      rs_src      : out std_logic;
+      rd_src      : out std_logic;
       alu_op      : out std_logic_vector(2 downto 0);
       branch      : out std_logic;
       jump        : out std_logic;
@@ -103,7 +103,7 @@ architecture rtl of cpu_top is
       mem_read_in   : in  std_logic;
       mem_write_in  : in  std_logic;
       mem_to_reg_in : in  std_logic;
-      rs_src_in     : in  std_logic;
+      rd_src_in     : in  std_logic;
       alu_op_in     : in  std_logic_vector(2 downto 0);
       branch_in     : in  std_logic;
       jump_in       : in  std_logic;
@@ -121,7 +121,7 @@ architecture rtl of cpu_top is
       mem_read_out  : out std_logic;
       mem_write_out : out std_logic;
       mem_to_reg_out : out std_logic;
-      rs_src_out    : out std_logic;
+      rd_src_out    : out std_logic;
       alu_op_out    : out std_logic_vector(2 downto 0);
       branch_out    : out std_logic;
       jump_out      : out std_logic;
@@ -146,7 +146,7 @@ architecture rtl of cpu_top is
       mem_read_in      : in  std_logic;
       mem_write_in     : in  std_logic;
       mem_to_reg_in    : in  std_logic;
-      rs_src_in        : in  std_logic;
+      rd_src_in        : in  std_logic;
       alu_op_in        : in  std_logic_vector(2 downto 0);
       branch_in        : in  std_logic;
       jump_in          : in  std_logic;
@@ -165,7 +165,7 @@ architecture rtl of cpu_top is
       mem_read_out     : out std_logic;
       mem_write_out    : out std_logic;
       mem_to_reg_out   : out std_logic;
-      rs_src_out       : out std_logic;
+      rd_src_out       : out std_logic;
       alu_op_out       : out std_logic_vector(2 downto 0);
       branch_out       : out std_logic;
       jump_out         : out std_logic;
@@ -211,7 +211,7 @@ architecture rtl of cpu_top is
   signal id_mem_read   : std_logic;
   signal id_mem_write  : std_logic;
   signal id_mem_to_reg : std_logic;
-  signal id_rs_src     : std_logic;
+  signal id_rd_src     : std_logic;
   signal id_alu_op     : std_logic_vector(2 downto 0);
   signal id_branch     : std_logic;
   signal id_jump       : std_logic;
@@ -231,7 +231,7 @@ architecture rtl of cpu_top is
   signal id_ex_mem_read   : std_logic;
   signal id_ex_mem_write  : std_logic;
   signal id_ex_mem_to_reg : std_logic;
-  signal id_ex_rs_src     : std_logic;
+  signal id_ex_rd_src     : std_logic;
   signal id_ex_alu_op     : std_logic_vector(2 downto 0);
   signal id_ex_branch     : std_logic;
   signal id_ex_jump       : std_logic;
@@ -247,7 +247,7 @@ architecture rtl of cpu_top is
   signal ex_mem_read     : std_logic;
   signal ex_mem_write    : std_logic;
   signal ex_mem_to_reg   : std_logic;
-  signal ex_rs_src       : std_logic;
+  signal ex_rd_src       : std_logic;
   signal ex_alu_op       : std_logic_vector(2 downto 0);
   signal ex_branch       : std_logic;
   signal ex_jump         : std_logic;
@@ -263,7 +263,7 @@ architecture rtl of cpu_top is
   signal ex_mem_mem_read   : std_logic;
   signal ex_mem_mem_write  : std_logic;
   signal ex_mem_mem_to_reg : std_logic;
-  signal ex_mem_rs_src     : std_logic;
+  signal ex_mem_rd_src     : std_logic;
   signal ex_mem_alu_op     : std_logic_vector(2 downto 0);
   signal ex_mem_branch     : std_logic;
   signal ex_mem_jump       : std_logic;
@@ -361,7 +361,7 @@ begin
       mem_read    => id_mem_read,
       mem_write   => id_mem_write,
       mem_to_reg  => id_mem_to_reg,
-      rs_src      => id_rs_src,
+      rd_src      => id_rd_src,
       alu_op      => id_alu_op,
       branch      => id_branch,
       jump        => id_jump,
@@ -381,7 +381,7 @@ begin
       mem_read_in   => id_ex_mem_read,
       mem_write_in  => id_ex_mem_write,
       mem_to_reg_in => id_ex_mem_to_reg,
-      rs_src_in     => id_ex_rs_src,
+      rd_src_in     => id_ex_rd_src,
       alu_op_in     => id_ex_alu_op,
       branch_in     => id_ex_branch,
       jump_in       => id_ex_jump,
@@ -399,7 +399,7 @@ begin
       mem_read_out  => ex_mem_read,
       mem_write_out => ex_mem_write,
       mem_to_reg_out => ex_mem_to_reg,
-      rs_src_out    => ex_rs_src,
+      rd_src_out    => ex_rd_src,
       alu_op_out    => ex_alu_op,
       branch_out    => ex_branch,
       jump_out      => ex_jump,
@@ -420,7 +420,7 @@ begin
       mem_read_in      => ex_mem_mem_read,
       mem_write_in     => ex_mem_mem_write,
       mem_to_reg_in    => ex_mem_mem_to_reg,
-      rs_src_in        => ex_mem_rs_src,
+      rd_src_in        => ex_mem_rd_src,
       alu_op_in        => ex_mem_alu_op,
       branch_in        => ex_mem_branch,
       jump_in          => ex_mem_jump,
@@ -439,7 +439,7 @@ begin
       mem_read_out     => open,
       mem_write_out    => open,
       mem_to_reg_out   => mem_mem_to_reg,
-      rs_src_out       => open,
+      rd_src_out       => open,
       alu_op_out       => open,
       branch_out       => open,
       jump_out         => open,
@@ -517,7 +517,7 @@ begin
       id_ex_mem_read   <= '0';
       id_ex_mem_write  <= '0';
       id_ex_mem_to_reg <= '0';
-      id_ex_rs_src     <= '0';
+      id_ex_rd_src     <= '0';
       id_ex_alu_op     <= (others => '0');
       id_ex_branch     <= '0';
       id_ex_jump       <= '0';
@@ -528,7 +528,7 @@ begin
         id_ex_mem_read   <= '0';
         id_ex_mem_write  <= '0';
         id_ex_mem_to_reg <= '0';
-        id_ex_rs_src     <= '0';
+        id_ex_rd_src     <= '0';
         id_ex_alu_op     <= (others => '0');
         id_ex_branch     <= '0';
         id_ex_jump       <= '0';
@@ -547,7 +547,7 @@ begin
         id_ex_mem_read   <= id_mem_read;
         id_ex_mem_write  <= id_mem_write;
         id_ex_mem_to_reg <= id_mem_to_reg;
-        id_ex_rs_src     <= id_rs_src;
+        id_ex_rd_src     <= id_rd_src;
         id_ex_alu_op     <= id_alu_op;
         id_ex_branch     <= id_branch;
         id_ex_jump       <= id_jump;
@@ -569,7 +569,7 @@ begin
       ex_mem_mem_read      <= '0';
       ex_mem_mem_write     <= '0';
       ex_mem_mem_to_reg    <= '0';
-      ex_mem_rs_src        <= '0';
+      ex_mem_rd_src        <= '0';
       ex_mem_alu_op        <= (others => '0');
       ex_mem_branch        <= '0';
       ex_mem_jump          <= '0';
@@ -584,7 +584,7 @@ begin
       ex_mem_mem_read      <= ex_mem_read;
       ex_mem_mem_write     <= ex_mem_write;
       ex_mem_mem_to_reg    <= ex_mem_to_reg;
-      ex_mem_rs_src        <= ex_rs_src;
+      ex_mem_rd_src        <= ex_rd_src;
       ex_mem_alu_op        <= ex_alu_op;
       ex_mem_branch        <= ex_branch;
       ex_mem_jump          <= ex_jump;

@@ -21,7 +21,7 @@ entity ex_stage is
     mem_read_in   : in  std_logic;
     mem_write_in  : in  std_logic;
     mem_to_reg_in : in  std_logic;
-    rs_src_in     : in  std_logic;
+    rd_src_in     : in  std_logic;
     alu_op_in     : in  std_logic_vector(2 downto 0);
     branch_in     : in  std_logic;
     jump_in       : in  std_logic;
@@ -44,7 +44,7 @@ entity ex_stage is
     mem_read_out   : out std_logic;
     mem_write_out  : out std_logic;
     mem_to_reg_out : out std_logic;
-    rs_src_out     : out std_logic;
+    rd_src_out     : out std_logic;
     alu_op_out     : out std_logic_vector(2 downto 0);
     branch_out     : out std_logic;
     jump_out       : out std_logic;
@@ -60,21 +60,24 @@ architecture rtl of ex_stage is
   signal alu_y      : signed(DATA_WIDTH - 1 downto 0);
   signal operand_a  : std_logic_vector(DATA_WIDTH - 1 downto 0);
   signal operand_b  : std_logic_vector(DATA_WIDTH - 1 downto 0);
+  signal rd_src_data     : std_logic_vector(DATA_WIDTH - 1 downto 0);
   signal forward_rs_data : std_logic_vector(DATA_WIDTH - 1 downto 0);
   signal forward_rd_data : std_logic_vector(DATA_WIDTH - 1 downto 0);
 begin
+  rd_src_data <= imm_ext_in when rd_src_in = '1' else rd_val_in;
+
   with forward_a select
     forward_rs_data <= ex_mem_alu  when "01",
                        mem_wb_data when "10",
                        rs_val_in   when others;
-
+                       
   with forward_b select
     forward_rd_data <= ex_mem_alu  when "01",
                        mem_wb_data when "10",
-                       rd_val_in   when others;
+                       rd_src_data when others;
 
   operand_a <= forward_rs_data;
-  operand_b <= imm_ext_in when rs_src_in = '1' else forward_rd_data;
+  operand_b <= forward_rd_data;
 
   alu_a <= signed(operand_a);
   alu_b <= signed(operand_b);
@@ -102,7 +105,7 @@ begin
   mem_read_out   <= mem_read_in;
   mem_write_out  <= mem_write_in;
   mem_to_reg_out <= mem_to_reg_in;
-  rs_src_out     <= rs_src_in;
+  rd_src_out     <= rd_src_in;
   alu_op_out     <= alu_op_in;
   branch_out     <= branch_in;
   jump_out       <= jump_in;

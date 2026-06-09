@@ -41,7 +41,7 @@ entity id_stage is
     mem_read    : out std_logic;
     mem_write   : out std_logic;
     mem_to_reg  : out std_logic;
-    rs_src      : out std_logic;
+    rd_src      : out std_logic;
     alu_op      : out std_logic_vector(2 downto 0);
     branch      : out std_logic;
     jump        : out std_logic;
@@ -65,6 +65,27 @@ architecture rtl of id_stage is
   signal op2_data  : std_logic_vector(DATA_WIDTH - 1 downto 0);
   signal imm_ext_data : std_logic_vector(DATA_WIDTH - 1 downto 0);
   signal jump_target_data : std_logic_vector(DATA_WIDTH - 1 downto 0);
+
+  -- 写优先读：WB 同拍写、ID 同拍读同一寄存器时，读口直接返回 wb_data，
+  -- 保证锁入 ID/EX 的操作数为最新值；与 EX 阶段转发互补（转发管流水寄存器里的生产者）。
+  function reg_read_write_first (
+    addr      : std_logic_vector(3 downto 0);
+    wr_en_i   : std_logic;
+    wr_addr_i : std_logic_vector(3 downto 0);
+    wr_data_i : std_logic_vector(DATA_WIDTH - 1 downto 0);
+    regs_i    : reg_array_t
+  ) return std_logic_vector is
+    variable zero_v : std_logic_vector(wr_data_i'length - 1 downto 0);
+  begin
+    if addr = "0000" then
+      zero_v := (others => '0');
+      return zero_v;
+    elsif wr_en_i = '1' and wr_addr_i /= "0000" and wr_addr_i = addr then
+      return wr_data_i;
+    else
+      return regs_i(to_integer(unsigned(addr)));
+    end if;
+  end function reg_read_write_first;
 begin
   opcode    <= instruction(15 downto 12);
 
@@ -100,10 +121,10 @@ begin
     end if;
   end process reg_file_write;
 
-  -- x0 恒为 0；读端口为组合读，方便 ID 阶段同拍取得 RS/RD。
-  rs_data  <= (others => '0') when rs_field = "0000" else regs(to_integer(unsigned(rs_field)));
-  rs2_data <= (others => '0') when rs2_field = "0000" else regs(to_integer(unsigned(rs2_field)));
-  rd_data  <= (others => '0') when rd_field = "0000" else regs(to_integer(unsigned(rd_field)));
+  -- x0 恒为 0；组合读 + 写优先，支持 WB 与 ID 同拍访问同一寄存器。
+  rs_data  <= reg_read_write_first(rs_field, wr_en, wr_addr, wr_data, regs);
+  rs2_data <= reg_read_write_first(rs2_field, wr_en, wr_addr, wr_data, regs);
+  rd_data  <= reg_read_write_first(rd_field, wr_en, wr_addr, wr_data, regs);
 
   op2_data <= rs2_data when opcode = "0001" or opcode = "0011" or opcode = "0100" else
               rd_data;
@@ -138,7 +159,7 @@ begin
     mem_read   <= '0';
     mem_write  <= '0';
     mem_to_reg <= '0';
-    rs_src     <= '0';
+    rd_src     <= '0';
     alu_op     <= "000";
     branch     <= '0';
     jump       <= '0';
@@ -147,29 +168,29 @@ begin
     case opcode is
       when "0000" => -- ADDI
         reg_write <= '1';
-        rs_src    <= '1';
+        rd_src    <= '1';
         alu_op    <= "000";
 
       when "0001" => -- ADD / SUB
         reg_write <= '1';
-        rs_src    <= '0';
+        rd_src    <= '0';
         alu_op    <= funct3;
 
       when "0010" => -- LD
         reg_write  <= '1';
         mem_read   <= '1';
         mem_to_reg <= '1';
-        rs_src     <= '1';
+        rd_src     <= '1';
         alu_op     <= "000";
 
       when "0011" => -- ST
         mem_write <= '1';
-        rs_src    <= '1';
+        rd_src    <= '1';
         alu_op    <= "000";
 
       when "0100" => -- BNE
         branch  <= '1';
-        rs_src  <= '0';
+        rd_src  <= '0';
 
       when "0101" => -- J
         jump <= '1';

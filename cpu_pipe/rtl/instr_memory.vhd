@@ -21,21 +21,17 @@ architecture rtl of instr_memory is
 
   constant INIT_MEM : mem_array_t := (
     0  => x"0041", -- ADDI x1, x0, 1
-    1  => x"0082", -- ADDI x2, x0, 2
-    2  => x"1298", -- ADD  x3, x1, x2
-    3  => x"30C0", -- ST   x3, 0(x0)
-    4  => x"F000", -- HALT
---    1  => x"0081", -- ADDI x2, x0, 1
---    2  => x"010D", -- ADDI x4, x0, 13
---    3  => x"0145", -- ADDI x5, x0, 5
---    4  => x"1298", -- ADD  x3, x1, x2
---    5  => x"38C0", -- ST   x3, 0(x4)
---    6  => x"0440", -- ADDI x1, x2, 0
---    7  => x"0680", -- ADDI x2, x3, 0
---    8  => x"0901", -- ADDI x4, x4, 1
---    9  => x"0B7F", -- ADDI x5, x5, -1
---    10 => x"4A3A", -- BNE  x5, x0, LOOP (offset = -6)
---    11 => x"F000", -- HALT
+    1  => x"0081", -- ADDI x2, x0, 1
+    2  => x"010D", -- ADDI x4, x0, 13
+    3  => x"0145", -- ADDI x5, x0, 5
+    4  => x"1298", -- ADD  x3, x1, x2
+    5  => x"38C0", -- ST   x3, 0(x4)
+    6  => x"0440", -- ADDI x1, x2, 0
+    7  => x"0680", -- ADDI x2, x3, 0
+    8  => x"0901", -- ADDI x4, x4, 1
+    9  => x"0B7F", -- ADDI x5, x5, -1
+    10 => x"4A3A", -- BNE  x5, x0, LOOP (offset = -6)
+    11 => x"F000", -- HALT
     others => (others => '0')
   );
 

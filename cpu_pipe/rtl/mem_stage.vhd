@@ -19,7 +19,7 @@ entity mem_stage is
     mem_read_in   : in  std_logic;
     mem_write_in  : in  std_logic;
     mem_to_reg_in : in  std_logic;
-    rs_src_in     : in  std_logic;
+    rd_src_in     : in  std_logic;
     alu_op_in     : in  std_logic_vector(2 downto 0);
     branch_in     : in  std_logic;
     jump_in       : in  std_logic;
@@ -43,7 +43,7 @@ entity mem_stage is
     mem_read_out   : out std_logic;
     mem_write_out  : out std_logic;
     mem_to_reg_out : out std_logic;
-    rs_src_out     : out std_logic;
+    rd_src_out     : out std_logic;
     alu_op_out     : out std_logic_vector(2 downto 0);
     branch_out     : out std_logic;
     jump_out       : out std_logic;
@@ -68,7 +68,7 @@ begin
   mem_read_out   <= mem_read_in;
   mem_write_out  <= mem_write_in;
   mem_to_reg_out <= mem_to_reg_in;
-  rs_src_out     <= rs_src_in;
+  rd_src_out     <= rd_src_in;
   alu_op_out     <= alu_op_in;
   branch_out     <= branch_in;
   jump_out       <= jump_in;
