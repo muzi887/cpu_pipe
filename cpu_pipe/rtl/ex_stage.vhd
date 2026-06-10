@@ -11,6 +11,8 @@ entity ex_stage is
   );
   port (
     pc_in       : in  std_logic_vector(ADDR_WIDTH - 1 downto 0);
+    rs_in       : in  std_logic_vector(3 downto 0);
+    rs2_in      : in  std_logic_vector(3 downto 0);
     rs_val_in   : in  std_logic_vector(DATA_WIDTH - 1 downto 0);
     rd_val_in   : in  std_logic_vector(DATA_WIDTH - 1 downto 0);
     rd_in       : in  std_logic_vector(3 downto 0);
@@ -27,14 +29,16 @@ entity ex_stage is
     jump_in       : in  std_logic;
     halt_in       : in  std_logic;
 
-    -- forwarding interface (中期默认 00，终期由 forwarding_unit 驱动)
     forward_a     : in  std_logic_vector(1 downto 0);
     forward_b     : in  std_logic_vector(1 downto 0);
     ex_mem_alu    : in  std_logic_vector(DATA_WIDTH - 1 downto 0);
     mem_wb_data   : in  std_logic_vector(DATA_WIDTH - 1 downto 0);
 
-    -- to EX/MEM pipeline register
     alu_result    : out std_logic_vector(DATA_WIDTH - 1 downto 0);
+    rs_val_out    : out std_logic_vector(DATA_WIDTH - 1 downto 0);
+    rs_out        : out std_logic_vector(3 downto 0);
+    rs2_val_out   : out std_logic_vector(DATA_WIDTH - 1 downto 0);
+    rs2_out       : out std_logic_vector(3 downto 0);
     rd_val_out    : out std_logic_vector(DATA_WIDTH - 1 downto 0);
     rd_out        : out std_logic_vector(3 downto 0);
     branch_taken  : out std_logic;
@@ -55,29 +59,48 @@ entity ex_stage is
 end entity ex_stage;
 
 architecture rtl of ex_stage is
-  signal alu_a      : signed(DATA_WIDTH - 1 downto 0);
-  signal alu_b      : signed(DATA_WIDTH - 1 downto 0);
-  signal alu_y      : signed(DATA_WIDTH - 1 downto 0);
-  signal operand_a  : std_logic_vector(DATA_WIDTH - 1 downto 0);
-  signal operand_b  : std_logic_vector(DATA_WIDTH - 1 downto 0);
-  signal rd_src_data     : std_logic_vector(DATA_WIDTH - 1 downto 0);
-  signal forward_rs_data : std_logic_vector(DATA_WIDTH - 1 downto 0);
-  signal forward_rd_data : std_logic_vector(DATA_WIDTH - 1 downto 0);
+  signal alu_a             : signed(DATA_WIDTH - 1 downto 0);
+  signal alu_b             : signed(DATA_WIDTH - 1 downto 0);
+  signal alu_y             : signed(DATA_WIDTH - 1 downto 0);
+  signal operand_a         : std_logic_vector(DATA_WIDTH - 1 downto 0);
+  signal operand_b         : std_logic_vector(DATA_WIDTH - 1 downto 0);
+  signal rs_src_data       : std_logic_vector(DATA_WIDTH - 1 downto 0);
+  signal rd_src_data       : std_logic_vector(DATA_WIDTH - 1 downto 0);
+  signal forward_rs_data   : std_logic_vector(DATA_WIDTH - 1 downto 0);
+  signal forward_rd_reg    : std_logic_vector(DATA_WIDTH - 1 downto 0);
+  signal forward_rd_data   : std_logic_vector(DATA_WIDTH - 1 downto 0);
+  signal forward_rs2_data  : std_logic_vector(DATA_WIDTH - 1 downto 0);
 begin
+  rs_src_data <= rs_val_in;
+
+  -- rd_src MUX → Forward_rd 的 00 输入
   rd_src_data <= imm_ext_in when rd_src_in = '1' else rd_val_in;
 
+  -- rs_src_data → Forward_rs → ALU A
   with forward_a select
     forward_rs_data <= ex_mem_alu  when "01",
                        mem_wb_data when "10",
-                       rs_val_in   when others;
-                       
+                       rs_src_data when others;
+
+  -- rd_src_data → Forward_rd → ALU B（rd_src=0 时可转发）
   with forward_b select
-    forward_rd_data <= ex_mem_alu  when "01",
-                       mem_wb_data when "10",
-                       rd_src_data when others;
+    forward_rd_reg <= ex_mem_alu  when "01",
+                        mem_wb_data when "10",
+                        rd_src_data when others;
+
+  -- rd_src=1：ALU B 恒为 rd_src_data（imm），forward_b 不写数据转发不能覆盖
+  forward_rd_data <= rd_src_data when rd_src_in = '1' else forward_rd_reg;
+
+  -- ST 写数据：rs2（rd_val_in）单独转发，与 ALU B 分离
+  with forward_b select
+    forward_rs2_data <= ex_mem_alu  when "01",
+                          mem_wb_data when "10",
+                          rd_val_in   when others;
 
   operand_a <= forward_rs_data;
   operand_b <= forward_rd_data;
+
+  rd_val_out <= forward_rs2_data when mem_write_in = '1' else forward_rd_reg;
 
   alu_a <= signed(operand_a);
   alu_b <= signed(operand_b);
@@ -96,10 +119,14 @@ begin
 
   branch_target <= addr_target_in;
 
-  branch_taken <= branch_in when operand_a /= operand_b else '0';
+  -- BNE：rs1（Forward_rs）与 rs2（Forward_rd_reg）比较
+  branch_taken <= branch_in when forward_rs_data /= forward_rd_reg else '0';
 
-  rd_val_out <= forward_rd_data;
+  rs_val_out  <= forward_rs_data;
+  rs2_val_out <= forward_rs2_data when mem_write_in = '1' else forward_rd_reg;
   rd_out      <= rd_in;
+  rs_out      <= rs_in;
+  rs2_out     <= rs2_in;
 
   reg_write_out  <= reg_write_in;
   mem_read_out   <= mem_read_in;

@@ -43,10 +43,11 @@ Forward 块**只做两件事**：
               │                         │
               ▼                         ▼
          Forward_rs MUX            Forward_rd MUX
-         （ALU 下端 / RS）         （ALU 上端 / RS2）
+         （ALU 上端 / RS）         （ALU 下端 / rd_src）
               │                         │
-              ├─→ operand_a             ├─→ operand_b（rs_src=0）
-              │                         └─→ rd_val_out（ST 写数据）
+              ├─→ operand_a             ├─→ operand_b
+              │   （alu_a）              │   （alu_b）
+              │                         └─→ rd_val_out（ST 写数据，Forward_rs2 另路）
               ▼
             ALU
               │
@@ -64,44 +65,88 @@ Forward 块**只做两件事**：
 ```text
 ID/EX
   │
-  ├─ RD/RS2 ───────────────────────────> Forward_rd MUX ──> ALU 上端
-  │                                              │
-  │                                              └──> rd_val_out（ST Write_Data）
+  ├─ RS 读口 ──> rs_src_data ──> Forward_rs MUX ──> ALU 上端（A / alu_a / operand_a）
   │
-  └─ RS ─────> Rs_src MUX ─────────────> Forward_rs MUX ──> ALU 下端
-               (选 RS / imm)
-
-EX/MEM.alu_result  ──> 两个 MUX 的【上输入】  forward = 01
-MEM/WB.write_data  ──> 两个 MUX 的【下输入】  forward = 10
-ID/EX 原始寄存器值 ──> 两个 MUX 的【中输入】  forward = 00
+  └─ rd_src MUX ──> rd_src_data ──> Forward_rd MUX ──> ALU 下端（B / alu_b / operand_b）
+        │ rd_src=1: imm
+        │ rd_src=0: rd_val（R 型 rs2 / BNE 第二源）
+        │
+        └─（ST 写数据另路）rd_val_in(rs2) ──> Forward_rs2 MUX ──> rd_val_out ──> mem_wdata
 ```
-
-### Rs_src 的作用
-
-**Rs_src 在 Forward_rs 前面**：先决定 ALU 下端用 RS 还是 imm，再决定是否被转发值覆盖。
 
 ```text
-Rs_src = 0  →  ALU 下端选 ID/EX.RS（经 Forward_rs MUX）
-Rs_src = 1  →  ALU 下端选 imm（立即数）
+EX/MEM.alu_result  ──> Forward 的 01 输入
+MEM/WB.write_data  ──> Forward 的 10 输入
+锁存原始值         ──> Forward 的 00 输入（rs_src_data / rd_src_data / rd_val_in）
 ```
 
-对 `ADDI / LD / ST`：`rs_src = 1`，运算为 **RS + imm**（基址 + 偏移）。  
-`rs_src` 控制的是 **ALU 下端的 imm 选择**，不是把 imm 接到上端。
+### rd_src MUX（在 Forward_rd 之前）
+
+**立即数与寄存器的选择在 `rd_src_data` 完成**，再送入 `Forward_rd`：
+
+```text
+rd_src_data <= imm_ext_in  when rd_src = 1   （ADDI / LD / ST 偏移）
+            <= rd_val_in   when rd_src = 0   （ADD / BNE 第二源）
+```
+
+### rs_src_data
+
+```text
+rs_src_data <= rs_val_in    （RS 读口，锁存自 ID/EX）
+             ──> Forward_rs ──> ALU 上端（A）
+```
+
+### rd_src=1 时 Forward_rd 的特殊规则
+
+`forward_b` 比较的是 **ID/EX.RS2**（ST 的写数据寄存器 x3），用于 **写数据转发**，  
+**不能**覆盖 ALU 下端（B）的 `rd_src_data`（imm 偏移）。
+
+```text
+rd_src = 1  →  forward_rd_data（送 ALU）= rd_src_data（恒为 imm，忽略 forward_b 的 01/10）
+rd_src = 0  →  forward_rd_data（送 ALU）= Forward_rd(rd_src_data)，可转发
+```
+
+ST 写数据走独立一路：`Forward_rs2(forward_b, rd_val_in)` → `rd_val_out`。
 
 ### 代码中的操作数连接（ex_stage.vhd）
 
-图中「上/下」是数据流图约定；代码里用 `operand_a/b` 只是变量名：
+```vhdl
+rs_src_data <= rs_val_in;
+rd_src_data <= imm_ext_in when rd_src_in = '1' else rd_val_in;
 
-```text
-图中 ALU 下端 ← forward_rs_data ← forward_a
-图中 ALU 上端 ← forward_rd_data ← forward_b（rs_src=0 时参与 ALU）
+-- Forward_rs → ALU 上端（A）
+with forward_a select
+  forward_rs_data <= ex_mem_alu  when "01",
+                     mem_wb_data when "10",
+                     rs_src_data when others;
 
-operand_a <= forward_rs_data
-operand_b <= imm_ext_in when rs_src_in = '1' else forward_rd_data
+-- Forward_rd → ALU 下端（B）；00 输入为 rd_src_data
+with forward_b select
+  forward_rd_reg <= ex_mem_alu  when "01",
+                    mem_wb_data when "10",
+                    rd_src_data when others;
 
-alu_result <= alu_y
-rd_val_out <= forward_rd_data    ← ST 写数据也走 forward_rd 路径
+forward_rd_data <= rd_src_data when rd_src_in = '1' else forward_rd_reg;
+
+-- ST 写数据：Forward_rs2 只转发 rs2（rd_val_in），与 ALU 下端分离
+with forward_b select
+  forward_rs2_data <= ex_mem_alu  when "01",
+                      mem_wb_data when "10",
+                      rd_val_in   when others;
+
+operand_a    <= forward_rs_data;
+operand_b    <= forward_rd_data;
+rd_val_out   <= forward_rs2_data when mem_write_in = '1' else forward_rd_reg;
+branch_taken <= branch_in when forward_rs_data /= forward_rd_reg else '0';
 ```
+
+**数据流小结**：
+
+| 路径 | 连接 |
+|------|------|
+| ALU 上端（A） | `rs_src_data → Forward_rs → operand_a` |
+| ALU 下端（B） | `rd_src_data → Forward_rd → operand_b`（rd_src=1 时不被 forward_b 覆盖） |
+| ST 写数据 | `rd_val_in → Forward_rs2 → rd_val_out` |
 
 ---
 
@@ -127,8 +172,9 @@ rd_val_out <= forward_rd_data    ← ST 写数据也走 forward_rd 路径
 ### 输出
 
 ```text
-forward_rs  →  Forward_rs MUX（ALU 下端 / RS 路径）
-forward_rd  →  Forward_rd MUX（ALU 上端 / RS2 路径 + ST 写数据）
+forward_rs  →  Forward_rs MUX（rs_src_data → ALU 上端 A）
+forward_rd  →  Forward_rd MUX（rd_src_data → ALU 下端 B；rd_src=1 时不覆盖 imm）
+            +  Forward_rs2 MUX（rd_val_in → rd_val_out，仅 ST 写数据）
 ```
 
 代码对应：
@@ -227,30 +273,16 @@ forward_b <= forward_sel(id_ex_rs2, ...)
 
 ### EX 阶段 MUX（ex_stage.vhd）
 
-```vhdl
-with forward_a select
-  forward_rs_data <= ex_mem_alu  when "01",
-                     mem_wb_data when "10",
-                     rs_val_in   when others;
-
-with forward_b select
-  forward_rd_data <= ex_mem_alu  when "01",
-                     mem_wb_data when "10",
-                     rd_val_in   when others;
-
-operand_a    <= forward_rs_data;
-operand_b    <= imm_ext_in when rs_src_in = '1' else forward_rd_data;
-rd_val_out   <= forward_rd_data;
-alu_result   <= std_logic_vector(alu_y);
-```
+见第 4 节「代码中的操作数连接」完整 VHDL。
 
 数据来源：
 
 ```text
 ex_mem_alu  ← ex_mem_alu_result   （EX/MEM）
-mem_wb_data ← mem_wb_wdata        （MEM/WB 写回值，= wb_data）
-rs_val_in   ← id_ex_rs_val
-rd_val_in   ← id_ex_rd_val
+mem_wb_data ← mem_wb_wdata        （MEM/WB 写回值）
+rs_src_data ← id_ex_rs_val
+rd_src_data ← imm 或 id_ex_rd_val （由 rd_src 选择）
+rd_val_in   ← id_ex_rd_val        （rs2，ST 写数据 + BNE 第二源）
 ```
 
 ### 锁存与 MEM 透传
@@ -300,25 +332,28 @@ MEM：mem_addr = EX/MEM.alu_result
 时段 7: MEM = ST,    WB = ADD x3
 ```
 
-### ST x3, 0(x0) 在 EX（时段 6）应看到
+### ST x3, 0(x4) 在 EX（斐波那契，ADD 紧前）应看到
 
 ```text
-id_ex_rs  = x0        （基址）
-id_ex_rs2 = x3        （写数据）
+id_ex_rs  = x4        （基址）
+id_ex_rs2 = x3        （写数据寄存器号）
+rd_src    = 1         （ALU 下端 B 取 imm 偏移）
 
-forward_a = 00        ← 基址 x0，不需要转发
-forward_b = 01        ← x3 = EX/MEM.rd，从 EX/MEM 转发
+rs_src_data  = 13     （x4）
+rd_src_data  = 0      （imm）
+forward_a    = 00
+forward_b    = 01     （x3 在 EX/MEM，用于写数据转发）
 
-alu_result = 0 + 0 = 0     （地址）
-rd_val_out = 3             （写数据，来自 ex_mem_alu）
+operand_a / ex_rs_val     = 13
+operand_b / forward_rd_data = 0   （rd_src=1，不被 forward_b 覆盖）
+alu_result   = 13 + 0 = 13
+rd_val_out   = 2      （x3=ADD 结果，经 Forward_rs2 / forward_b=01）
 ```
 
 **常见误判**：
 
-- 看 `forward_a` 以为 x3 在转发 → **错**；x3 走 `forward_b / forward_rd`
-- 认为 x3 在 MEM 阶段才从 WB 转发 → **与当前 RTL 不符**（见第 11 节）
-
-若 `forward_a = 01` 且 `alu_result = 3`：说明 RS 路径误用了 ADD 的结果，地址算错。
+- `forward_b=01` 时以为 ALU 也算 13+2=15 → **错**；`forward_b` 写数据转发与 ALU 下端（B）已分离
+- 把 imm 选择放在 `operand_b` 直连、绕过 `rd_src_data → Forward_rd` → **与数据流图不符**
 
 ---
 

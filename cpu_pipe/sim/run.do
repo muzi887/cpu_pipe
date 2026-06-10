@@ -24,9 +24,13 @@ set rtl_files {
   ../rtl/ex_stage.vhd
   ../rtl/mem_stage.vhd
   ../rtl/wb_stage.vhd
+  ../rtl/hazard_unit.vhd
+  ../rtl/forward_unit.vhd
   ../rtl/cpu_top.vhd
-  ../rtl/instr_memory.vhd
-  ../rtl/data_memory.vhd
+  ../rtl/main_memory.vhd
+  ../rtl/i_cache.vhd
+  ../rtl/d_cache.vhd
+  ../rtl/cache_control.vhd
   ../rtl/soc_top.vhd
   ../tb/tb_soc_top.vhd
 }
@@ -59,6 +63,20 @@ add wave sim:/tb_soc_top/clk
 add wave sim:/tb_soc_top/rst
 add wave sim:/tb_soc_top/debug_pc
 add wave sim:/tb_soc_top/debug_instr
+
+add wave -divider "EX"
+add wave sim:/tb_soc_top/u_dut/u_cpu/ex_alu_result
+add wave sim:/tb_soc_top/u_dut/u_cpu/ex_rs
+add wave sim:/tb_soc_top/u_dut/u_cpu/ex_rs_val
+add wave sim:/tb_soc_top/u_dut/u_cpu/ex_rs2
+add wave sim:/tb_soc_top/u_dut/u_cpu/ex_rs2_val
+add wave sim:/tb_soc_top/u_dut/u_cpu/ex_rd
+add wave sim:/tb_soc_top/u_dut/u_cpu/ex_rd_val
+add wave sim:/tb_soc_top/u_dut/u_cpu/ex_reg_write
+add wave sim:/tb_soc_top/u_dut/u_cpu/ex_mem_read
+add wave sim:/tb_soc_top/u_dut/u_cpu/ex_mem_write
+add wave sim:/tb_soc_top/u_dut/u_cpu/ex_branch_taken
+add wave sim:/tb_soc_top/u_dut/u_cpu/ex_branch_target
 
 add wave -divider "SOC"
 add wave -r sim:/tb_soc_top/u_dut/*

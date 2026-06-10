@@ -25,7 +25,7 @@ entity mem_stage is
     jump_in       : in  std_logic;
     halt_in       : in  std_logic;
 
-    -- data memory interface (代替 d_cache)
+    -- d_cache interface
     mem_rdata     : in  std_logic_vector(DATA_WIDTH - 1 downto 0);
     mem_addr      : out std_logic_vector(ADDR_WIDTH - 1 downto 0);
     mem_wdata     : out std_logic_vector(DATA_WIDTH - 1 downto 0);

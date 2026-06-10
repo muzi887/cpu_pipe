@@ -23,6 +23,9 @@ entity cpu_top is
     mem_read_en   : out std_logic;
     mem_write_en  : out std_logic;
 
+    -- Cache miss 时全局冻结流水线
+    cache_stall : in std_logic;
+
     -- 调试观测
     debug_pc   : out std_logic_vector(ADDR_WIDTH - 1 downto 0);
     debug_instr : out std_logic_vector(DATA_WIDTH - 1 downto 0)
@@ -94,6 +97,8 @@ architecture rtl of cpu_top is
     );
     port (
       pc_in         : in  std_logic_vector(ADDR_WIDTH - 1 downto 0);
+      rs_in         : in  std_logic_vector(3 downto 0);
+      rs2_in        : in  std_logic_vector(3 downto 0);
       rs_val_in     : in  std_logic_vector(DATA_WIDTH - 1 downto 0);
       rd_val_in     : in  std_logic_vector(DATA_WIDTH - 1 downto 0);
       rd_in         : in  std_logic_vector(3 downto 0);
@@ -113,6 +118,10 @@ architecture rtl of cpu_top is
       ex_mem_alu    : in  std_logic_vector(DATA_WIDTH - 1 downto 0);
       mem_wb_data   : in  std_logic_vector(DATA_WIDTH - 1 downto 0);
       alu_result    : out std_logic_vector(DATA_WIDTH - 1 downto 0);
+      rs_val_out    : out std_logic_vector(DATA_WIDTH - 1 downto 0);
+      rs_out        : out std_logic_vector(3 downto 0);
+      rs2_val_out   : out std_logic_vector(DATA_WIDTH - 1 downto 0);
+      rs2_out       : out std_logic_vector(3 downto 0);
       rd_val_out    : out std_logic_vector(DATA_WIDTH - 1 downto 0);
       rd_out        : out std_logic_vector(3 downto 0);
       branch_taken  : out std_logic;
@@ -189,6 +198,34 @@ architecture rtl of cpu_top is
     );
   end component;
 
+  component hazard_unit is
+    generic (
+      ADDR_WIDTH : integer := 16
+    );
+    port (
+      bne_taken   : in  std_logic;
+      pc_src      : out std_logic_vector(1 downto 0);
+      pc_en       : out std_logic;
+      ifid_en     : out std_logic;
+      ifid_src    : out std_logic;
+      control_src : out std_logic
+    );
+  end component;
+
+  component forward_unit is
+    port (
+      id_ex_rs  : in  std_logic_vector(3 downto 0);
+      id_ex_rs2 : in  std_logic_vector(3 downto 0);
+      ex_mem_rd : in  std_logic_vector(3 downto 0);
+      ex_mem_we : in  std_logic;
+      ex_mem_mr : in  std_logic;
+      mem_wb_rd : in  std_logic_vector(3 downto 0);
+      mem_wb_we : in  std_logic;
+      forward_a : out std_logic_vector(1 downto 0);
+      forward_b : out std_logic_vector(1 downto 0)
+    );
+  end component;
+
   -- IF 级输出
   signal if_pc         : std_logic_vector(ADDR_WIDTH - 1 downto 0);
   signal if_pc_plus1   : std_logic_vector(ADDR_WIDTH - 1 downto 0);
@@ -239,6 +276,10 @@ architecture rtl of cpu_top is
 
   -- EX 级输出
   signal ex_alu_result   : std_logic_vector(DATA_WIDTH - 1 downto 0);
+  signal ex_rs_val       : std_logic_vector(DATA_WIDTH - 1 downto 0);
+  signal ex_rs           : std_logic_vector(3 downto 0);
+  signal ex_rs2_val      : std_logic_vector(DATA_WIDTH - 1 downto 0);
+  signal ex_rs2          : std_logic_vector(3 downto 0);
   signal ex_rd_val       : std_logic_vector(DATA_WIDTH - 1 downto 0);
   signal ex_rd           : std_logic_vector(3 downto 0);
   signal ex_branch_taken : std_logic;
@@ -294,28 +335,19 @@ architecture rtl of cpu_top is
   signal branch_target : std_logic_vector(ADDR_WIDTH - 1 downto 0);
   signal jump_target   : std_logic_vector(ADDR_WIDTH - 1 downto 0);
   signal cpu_halt      : std_logic;
-  signal branch_flush  : std_logic;
+  signal hz_pc_src       : std_logic_vector(1 downto 0);
+  signal hz_pc_en        : std_logic;
+  signal hz_ifid_en      : std_logic;
+  signal hz_ifid_src     : std_logic;
+  signal hz_control_src  : std_logic;
+  signal ifid_src        : std_logic;
+  signal control_src     : std_logic;
+  signal if_id_instr_in  : std_logic_vector(DATA_WIDTH - 1 downto 0);
   signal forward_a     : std_logic_vector(1 downto 0);
   signal forward_b     : std_logic_vector(1 downto 0);
+  signal ex_forward_rs : std_logic_vector(1 downto 0);
+  signal ex_forward_rd : std_logic_vector(1 downto 0);
   signal mem_wb_wdata  : std_logic_vector(DATA_WIDTH - 1 downto 0);
-
-  function forward_sel (
-    id_ex_rs    : std_logic_vector(3 downto 0);
-    ex_mem_rd   : std_logic_vector(3 downto 0);
-    ex_mem_we   : std_logic;
-    ex_mem_mr   : std_logic;
-    mem_wb_rd   : std_logic_vector(3 downto 0);
-    mem_wb_we   : std_logic
-  ) return std_logic_vector is
-  begin
-    if ex_mem_we = '1' and ex_mem_mr = '0' and ex_mem_rd /= "0000" and ex_mem_rd = id_ex_rs then
-      return "01";
-    elsif mem_wb_we = '1' and mem_wb_rd /= "0000" and mem_wb_rd = id_ex_rs then
-      return "10";
-    else
-      return "00";
-    end if;
-  end function forward_sel;
 
 begin
   u_if : if_stage
@@ -372,6 +404,8 @@ begin
     generic map (ADDR_WIDTH => ADDR_WIDTH, DATA_WIDTH => DATA_WIDTH)
     port map (
       pc_in         => id_ex_pc,
+      rs_in         => id_ex_rs,
+      rs2_in        => id_ex_rs2,
       rs_val_in     => id_ex_rs_val,
       rd_val_in     => id_ex_rd_val,
       rd_in         => id_ex_rd,
@@ -391,6 +425,10 @@ begin
       ex_mem_alu    => ex_mem_alu_result,
       mem_wb_data   => mem_wb_wdata,
       alu_result    => ex_alu_result,
+      rs_val_out    => ex_rs_val,
+      rs_out        => ex_rs,
+      rs2_val_out   => ex_rs2_val,
+      rs2_out       => ex_rs2,
       rd_val_out    => ex_rd_val,
       rd_out        => ex_rd,
       branch_taken  => ex_branch_taken,
@@ -403,8 +441,8 @@ begin
       alu_op_out    => ex_alu_op,
       branch_out    => ex_branch,
       jump_out      => ex_jump,
-      forward_rs    => open,
-      forward_rd    => open,
+      forward_rs    => ex_forward_rs,
+      forward_rd    => ex_forward_rd,
       halt_out      => ex_halt
     );
 
@@ -461,26 +499,46 @@ begin
 
   mem_wb_wdata <= mem_wb_mem_data when mem_wb_mem_to_reg = '1' else mem_wb_alu_result;
 
-  forward_a <= forward_sel(
-    id_ex_rs, ex_mem_rd, ex_mem_reg_write, ex_mem_mem_read,
-    mem_wb_rd, mem_wb_reg_write
-  );
-  forward_b <= forward_sel(
-    id_ex_rs2, ex_mem_rd, ex_mem_reg_write, ex_mem_mem_read,
-    mem_wb_rd, mem_wb_reg_write
-  );
+  u_forward : forward_unit
+    port map (
+      id_ex_rs  => id_ex_rs,
+      id_ex_rs2 => id_ex_rs2,
+      ex_mem_rd => ex_mem_rd,
+      ex_mem_we => ex_mem_reg_write,
+      ex_mem_mr => ex_mem_mem_read,
+      mem_wb_rd => mem_wb_rd,
+      mem_wb_we => mem_wb_reg_write,
+      forward_a => forward_a,
+      forward_b => forward_b
+    );
 
-  branch_flush <= ex_branch_taken or id_ex_jump;
+  u_hazard : hazard_unit
+    generic map (ADDR_WIDTH => ADDR_WIDTH)
+    port map (
+      bne_taken   => ex_branch_taken,
+      pc_src      => hz_pc_src,
+      pc_en       => hz_pc_en,
+      ifid_en     => hz_ifid_en,
+      ifid_src    => hz_ifid_src,
+      control_src => hz_control_src
+    );
 
-  pc_src <= "10" when id_ex_jump = '1' else
-            "01" when ex_branch_taken = '1' else
-            "00";
-  pc_en <= '1';
+  -- J 在 ID 判定，优先级高于 hazard_unit 内的 BNE 路径
+  pc_src  <= "10" when id_ex_jump = '1' else hz_pc_src;
+  pc_en   <= '0' when cache_stall = '1' else hz_pc_en;
+  -- Ifid_src MUX：0 ← i_cache 指令，1 ← 0（NOP）；J 亦需冲刷 IF/ID
+  ifid_src <= '1' when hz_ifid_src = '1' or id_ex_jump = '1' else '0';
+  -- Control_src MUX：0 ← bubble，1 ← ID 正常控制（仅 BNE 需 bubble ID/EX）
+  control_src <= hz_control_src;
   branch_target <= ex_branch_target;
   jump_target <= id_ex_addr_target;
-  cpu_halt <= '1' when if_id_instr(15 downto 12) = "1111" else '0';
+  -- HALT 在 EX 级生效，避免 BNE 跳转时 IF/ID 中的误取 HALT 提前冻结 PC
+  cpu_halt <= id_ex_halt;
 
-  debug_pc    <= if_pc;
+  -- IF/ID 指令 MUX（Ifid_src=1 时选 0，冲刷误取指）
+  if_id_instr_in <= (others => '0') when ifid_src = '1' else if_instruction;
+
+  debug_pc    <= if_id_pc;
   debug_instr <= if_id_instr;
 
   -- IF/ID
@@ -490,12 +548,9 @@ begin
       if_id_pc    <= (others => '0');
       if_id_instr <= (others => '0');
     elsif rising_edge(clk) then
-      if branch_flush = '1' then
-        if_id_pc    <= (others => '0');
-        if_id_instr <= (others => '0');
-      else
+      if hz_ifid_en = '1' and cache_stall = '0' then
         if_id_pc    <= if_pc;
-        if_id_instr <= if_instruction;
+        if_id_instr <= if_id_instr_in;
       end if;
     end if;
   end process if_id_reg;
@@ -523,35 +578,37 @@ begin
       id_ex_jump       <= '0';
       id_ex_halt       <= '0';
     elsif rising_edge(clk) then
-      if branch_flush = '1' then
-        id_ex_reg_write  <= '0';
-        id_ex_mem_read   <= '0';
-        id_ex_mem_write  <= '0';
-        id_ex_mem_to_reg <= '0';
-        id_ex_rd_src     <= '0';
-        id_ex_alu_op     <= (others => '0');
-        id_ex_branch     <= '0';
-        id_ex_jump       <= '0';
-        id_ex_halt       <= '0';
-      else
-        id_ex_pc         <= std_logic_vector(resize(unsigned(if_id_pc), ADDR_WIDTH));
-        id_ex_rs         <= id_rs;
-        id_ex_rs2        <= id_rs2;
-        id_ex_rd         <= id_rd;
-        id_ex_rs_val     <= id_rs_val;
-        id_ex_rd_val     <= id_rd_val;
-        id_ex_imm_ext    <= id_imm_ext;
-        id_ex_addr_target <= id_addr_target;
-        id_ex_instr      <= if_id_instr;
-        id_ex_reg_write  <= id_reg_write;
-        id_ex_mem_read   <= id_mem_read;
-        id_ex_mem_write  <= id_mem_write;
-        id_ex_mem_to_reg <= id_mem_to_reg;
-        id_ex_rd_src     <= id_rd_src;
-        id_ex_alu_op     <= id_alu_op;
-        id_ex_branch     <= id_branch;
-        id_ex_jump       <= id_jump;
-        id_ex_halt       <= id_halt;
+      if cache_stall = '0' then
+        if control_src = '0' then
+          id_ex_reg_write  <= '0';
+          id_ex_mem_read   <= '0';
+          id_ex_mem_write  <= '0';
+          id_ex_mem_to_reg <= '0';
+          id_ex_rd_src     <= '0';
+          id_ex_alu_op     <= (others => '0');
+          id_ex_branch     <= '0';
+          id_ex_jump       <= '0';
+          id_ex_halt       <= '0';
+        else
+          id_ex_pc         <= std_logic_vector(resize(unsigned(if_id_pc), ADDR_WIDTH));
+          id_ex_rs         <= id_rs;
+          id_ex_rs2        <= id_rs2;
+          id_ex_rd         <= id_rd;
+          id_ex_rs_val     <= id_rs_val;
+          id_ex_rd_val     <= id_rd_val;
+          id_ex_imm_ext    <= id_imm_ext;
+          id_ex_addr_target <= id_addr_target;
+          id_ex_instr      <= if_id_instr;
+          id_ex_reg_write  <= id_reg_write;
+          id_ex_mem_read   <= id_mem_read;
+          id_ex_mem_write  <= id_mem_write;
+          id_ex_mem_to_reg <= id_mem_to_reg;
+          id_ex_rd_src     <= id_rd_src;
+          id_ex_alu_op     <= id_alu_op;
+          id_ex_branch     <= id_branch;
+          id_ex_jump       <= id_jump;
+          id_ex_halt       <= id_halt;
+        end if;
       end if;
     end if;
   end process id_ex_reg;
@@ -575,20 +632,22 @@ begin
       ex_mem_jump          <= '0';
       ex_mem_halt          <= '0';
     elsif rising_edge(clk) then
-      ex_mem_alu_result    <= ex_alu_result;
-      ex_mem_rd_val        <= ex_rd_val;
-      ex_mem_rd            <= ex_rd;
-      ex_mem_branch_taken  <= ex_branch_taken;
-      ex_mem_branch_target <= ex_branch_target;
-      ex_mem_reg_write     <= ex_reg_write;
-      ex_mem_mem_read      <= ex_mem_read;
-      ex_mem_mem_write     <= ex_mem_write;
-      ex_mem_mem_to_reg    <= ex_mem_to_reg;
-      ex_mem_rd_src        <= ex_rd_src;
-      ex_mem_alu_op        <= ex_alu_op;
-      ex_mem_branch        <= ex_branch;
-      ex_mem_jump          <= ex_jump;
-      ex_mem_halt          <= ex_halt;
+      if cache_stall = '0' then
+        ex_mem_alu_result    <= ex_alu_result;
+        ex_mem_rd_val        <= ex_rd_val;
+        ex_mem_rd            <= ex_rd;
+        ex_mem_branch_taken  <= ex_branch_taken;
+        ex_mem_branch_target <= ex_branch_target;
+        ex_mem_reg_write     <= ex_reg_write;
+        ex_mem_mem_read      <= ex_mem_read;
+        ex_mem_mem_write     <= ex_mem_write;
+        ex_mem_mem_to_reg    <= ex_mem_to_reg;
+        ex_mem_rd_src        <= ex_rd_src;
+        ex_mem_alu_op        <= ex_alu_op;
+        ex_mem_branch        <= ex_branch;
+        ex_mem_jump          <= ex_jump;
+        ex_mem_halt          <= ex_halt;
+      end if;
     end if;
   end process ex_mem_reg;
 
@@ -602,11 +661,13 @@ begin
       mem_wb_reg_write  <= '0';
       mem_wb_mem_to_reg <= '0';
     elsif rising_edge(clk) then
-      mem_wb_mem_data   <= mem_data;
-      mem_wb_alu_result <= mem_alu_result;
-      mem_wb_rd         <= mem_rd;
-      mem_wb_reg_write  <= mem_reg_write;
-      mem_wb_mem_to_reg <= mem_mem_to_reg;
+      if cache_stall = '0' then
+        mem_wb_mem_data   <= mem_data;
+        mem_wb_alu_result <= mem_alu_result;
+        mem_wb_rd         <= mem_rd;
+        mem_wb_reg_write  <= mem_reg_write;
+        mem_wb_mem_to_reg <= mem_mem_to_reg;
+      end if;
     end if;
   end process mem_wb_reg;
 

@@ -20,7 +20,7 @@ entity if_stage is
     jump_target    : in  std_logic_vector(ADDR_WIDTH - 1 downto 0);
     halt           : in  std_logic;                    -- 1: PC 保持
 
-    -- instruction memory interface (代替 i_cache)
+    -- i_cache interface
     instr_data     : in  std_logic_vector(DATA_WIDTH - 1 downto 0);
 
     -- to IF/ID pipeline register
@@ -28,7 +28,7 @@ entity if_stage is
     pc_plus1_out   : out std_logic_vector(ADDR_WIDTH - 1 downto 0);
     instruction    : out std_logic_vector(DATA_WIDTH - 1 downto 0);
 
-    -- to instruction memory
+    -- to i_cache
     instr_addr     : out std_logic_vector(ADDR_WIDTH - 1 downto 0)
   );
 end entity if_stage;
