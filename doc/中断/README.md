@@ -6,7 +6,7 @@
 |------|------|
 | [中断相关名词解释.md](./中断相关名词解释.md) | 名词解释（CSR、MMIO、wdata、x6、ctrl_en、irq_timer 等） |
 | [Timer精确中断实现.md](./Timer精确中断实现.md) | 数据通路、CSR/SYS、irq_take 逻辑、flush、MMIO、仿真波形 |
-| [ISR-IRET与I-Cache时序.md](./ISR-IRET与I-Cache时序.md) | **仿真**：935–945 ADDI WB；995–1005 `iret_commit` |
+| [ISR-IRET与I-Cache时序.md](./ISR-IRET与I-Cache时序.md) | **仿真时序表** + **§3 RTL 因果**（985–995 过渡、两段 refill） |
 
 | RTL 文件 | 说明 |
 |----------|------|

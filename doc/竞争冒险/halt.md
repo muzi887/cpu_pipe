@@ -184,9 +184,14 @@ irq_take：pc_src=11 可跳到 0x0100（仅这一拍改 PC）
 
 ### 6.4 仿真时序（IRET 与 I-Cache）
 
-**935–945ns** **ADDI 在 WB / IRET 在 MEM**；**945–985ns** ISR 预取 **miss+stall**（IRET 尚未提交）；**995–1005ns** **`iret_commit=1`**，**≈1005ns** `PC←0x0D`。
+| 时刻 | 事件 |
+|------|------|
+| **935–945ns** | ADDI WB / IRET MEM |
+| **945–985ns** | ISR 预取 miss → stall + refill；IRET 卡在 MEM |
+| **985–995ns** | stall 解除，IRET MEM→WB |
+| **995–1005ns** | `iret_commit=1`；≈1005ns `PC←0x0D` |
 
-详见 **[ISR-IRET与I-Cache时序.md](../中断/ISR-IRET与I-Cache时序.md)**。
+详见 **[ISR-IRET与I-Cache时序.md](../中断/ISR-IRET与I-Cache时序.md)** §3（RTL 因果说明）。
 
 ---
 

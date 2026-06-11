@@ -493,11 +493,18 @@ do run.do
 
 ### 11.4 ISR / IRET 与 I-Cache 时序（约 935–1015ns）
 
-- **935–945ns**：**ADDI** 在 WB，**IRET** 在 MEM
-- **945–985ns**：ISR 预取 **miss** → `cache_stall` + refill；IRET **卡在 MEM**
-- **995–1005ns**：**`iret_commit=1`**（IRET 在 WB 提交）；**≈1005ns** `PC←EPC`（`0x0D`）
+| 时刻 | 事件 |
+|------|------|
+| **935–945ns** | **ADDI** 在 WB，**IRET** 在 MEM（IRET 比 ADDI 晚 1 拍进流水） |
+| **945–985ns** | ISR 内 IF 预取 **0x0102** 一带 **i_miss** → **`cache_stall` + refill**；IRET **卡在 MEM**（stall 期间不能 `iret_commit`） |
+| **985–995ns** | **`cache_stall=0`**，IRET **MEM→WB**；`debug_pc` 仍可能显示 `0103`/`0104`（IF 预取，与提交无关） |
+| **995–1005ns** | **`iret_commit=1`**，**`flush_all=1`**（IRET 在 WB 提交） |
+| **≈1005ns** | 组合逻辑 **`PC←EPC`（`0x0D`）**；`halt_latched←1`；`debug_pc` 约下一拍才显示 `000D` |
+| **≈1005ns 后** | 对 **0x0D** 取指可能 **再次 i_miss**（与 945–985ns 的 ISR refill **不是同一次**） |
 
-详见 **[ISR-IRET与I-Cache时序.md](./ISR-IRET与I-Cache时序.md)**。
+**因果链**：ISR 预取 miss → stall 推迟 IRET 提交 → `iret_commit` 仅在 **995–1005ns**（`cache_stall=0` 时）→ 返回 EPC 后 halt 再冻住 PC。
+
+详见 **[ISR-IRET与I-Cache时序.md](./ISR-IRET与I-Cache时序.md)** §2–§6。
 
 ### 11.5 通过标准
 
