@@ -28,7 +28,12 @@ entity d_cache is
     mem_read_en  : out std_logic;
     mem_write_en : out std_logic;
     mem_rdata    : in  std_logic_vector(DATA_WIDTH - 1 downto 0);
-    mem_grant    : in  std_logic
+    mem_grant    : in  std_logic;
+
+    -- 性能统计：每条读/写仅在使能上升沿计 1 次（stall 保持使能不重复计）
+    hit_count  : out std_logic_vector(15 downto 0);
+    miss_count : out std_logic_vector(15 downto 0);
+    hit_rate   : out std_logic_vector(7 downto 0)   -- 命中率 × 100，0～100
   );
 end entity d_cache;
 
@@ -59,7 +64,25 @@ architecture rtl of d_cache is
   signal hit         : std_logic;
   signal refill_base : std_logic_vector(ADDR_WIDTH - 1 downto 0);
   signal read_hit    : std_logic;
+
+  signal hit_cnt_reg  : unsigned(15 downto 0) := (others => '0');
+  signal miss_cnt_reg : unsigned(15 downto 0) := (others => '0');
+  signal total_access : unsigned(16 downto 0);
+
+  signal read_en_q  : std_logic := '0';
+  signal write_en_q : std_logic := '0';
+  signal new_access : std_logic;
 begin
+  hit_count  <= std_logic_vector(hit_cnt_reg);
+  miss_count <= std_logic_vector(miss_cnt_reg);
+
+  total_access <= resize(hit_cnt_reg, 17) + resize(miss_cnt_reg, 17);
+  hit_rate <= std_logic_vector(
+    to_unsigned(
+      (to_integer(hit_cnt_reg) * 100) / to_integer(total_access),
+      8
+    )
+  ) when total_access > 0 else (others => '0');
   req_index  <= unsigned(addr(INDEX_BITS + OFFSET_BITS - 1 downto OFFSET_BITS));
   req_offset <= unsigned(addr(OFFSET_BITS - 1 downto 0));
   req_tag    <= addr(ADDR_WIDTH - 1 downto INDEX_BITS + OFFSET_BITS);
@@ -89,6 +112,8 @@ begin
                   when state = S_REFILL else addr;
   mem_wdata    <= wdata;
 
+  new_access <= (read_en and not read_en_q) or (write_en and not write_en_q);
+
   ctrl_proc : process (clk, rst)
     variable idx : integer;
   begin
@@ -97,7 +122,22 @@ begin
       refill_cnt   <= (others => '0');
       valid_bits   <= (others => '0');
       cache_lines  <= (others => (others => (others => '0')));
+      hit_cnt_reg  <= (others => '0');
+      miss_cnt_reg <= (others => '0');
+      read_en_q    <= '0';
+      write_en_q   <= '0';
     elsif rising_edge(clk) then
+      read_en_q  <= read_en;
+      write_en_q <= write_en;
+
+      if state = S_IDLE and new_access = '1' then
+        if hit = '1' then
+          hit_cnt_reg <= hit_cnt_reg + 1;
+        else
+          miss_cnt_reg <= miss_cnt_reg + 1;
+        end if;
+      end if;
+
       if state = S_IDLE and write_en = '1' and hit = '1' then
         idx := to_integer(req_index);
         cache_lines(idx)(to_integer(req_offset)) <= wdata;

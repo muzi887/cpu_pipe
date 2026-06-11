@@ -73,3 +73,10 @@ Hazard Unit **不执行运算**，只**看**各级流水线寄存器里的字段
 ### 一句话
 
 **Hazard Unit = 流水线的“交通警察”**：发现 Load 后立刻用、分支猜错、存储器冲突等情况时，自动 **freeze（停）** 或 **flush（冲掉错误指令）**，程序员不必在汇编里插 NOP；课设里用 VHDL 实现 `hazard_unit.vhd` 即可。
+
+### 延伸阅读
+
+| 文档 | 内容 |
+|------|------|
+| [flush.md](../flush.md) | Flush 原理、三种场景、信号优先级与波形观察 |
+| [stall.md](./stall.md) | Stall 与 Flush 的区别 |

@@ -26,7 +26,11 @@ set rtl_files {
   ../rtl/wb_stage.vhd
   ../rtl/hazard_unit.vhd
   ../rtl/forward_unit.vhd
+  ../rtl/interrupt_controller.vhd
   ../rtl/cpu_top.vhd
+  ../rtl/timer.vhd
+  ../rtl/uart_mmio.vhd
+  ../rtl/gpio_mmio.vhd
   ../rtl/main_memory.vhd
   ../rtl/i_cache.vhd
   ../rtl/d_cache.vhd
@@ -64,6 +68,16 @@ add wave sim:/tb_soc_top/rst
 add wave sim:/tb_soc_top/debug_pc
 add wave sim:/tb_soc_top/debug_instr
 
+add wave sim:/tb_soc_top/debug_epc
+add wave sim:/tb_soc_top/debug_irq_pending
+add wave sim:/tb_soc_top/debug_status_ie
+
+add wave -divider "IRQ"
+add wave sim:/tb_soc_top/u_dut/u_timer/irq_timer
+add wave sim:/tb_soc_top/u_dut/u_cpu/flush_all
+add wave sim:/tb_soc_top/u_dut/u_cpu/irq_take
+add wave sim:/tb_soc_top/u_dut/u_cpu/iret_commit
+
 add wave -divider "EX"
 add wave sim:/tb_soc_top/u_dut/u_cpu/ex_alu_result
 add wave sim:/tb_soc_top/u_dut/u_cpu/ex_rs
@@ -78,9 +92,14 @@ add wave sim:/tb_soc_top/u_dut/u_cpu/ex_mem_write
 add wave sim:/tb_soc_top/u_dut/u_cpu/ex_branch_taken
 add wave sim:/tb_soc_top/u_dut/u_cpu/ex_branch_target
 
+add wave -divider "D-Cache Stats"
+add wave sim:/tb_soc_top/u_dut/u_dcache/hit_count
+add wave sim:/tb_soc_top/u_dut/u_dcache/miss_count
+add wave sim:/tb_soc_top/u_dut/u_dcache/hit_rate
+
 add wave -divider "SOC"
 add wave -r sim:/tb_soc_top/u_dut/*
 
-echo "Running 4000 ns..."
-run 4000 ns
+echo "Running 8000 ns..."
+run 8000 ns
 echo "Simulation finished."

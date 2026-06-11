@@ -45,7 +45,10 @@ entity id_stage is
     alu_op      : out std_logic_vector(2 downto 0);
     branch      : out std_logic;
     jump        : out std_logic;
-    halt        : out std_logic
+    halt        : out std_logic;
+    sys_ei      : out std_logic;
+    sys_di      : out std_logic;
+    sys_iret    : out std_logic
   );
 end entity id_stage;
 
@@ -164,6 +167,9 @@ begin
     branch     <= '0';
     jump       <= '0';
     halt       <= '0';
+    sys_ei     <= '0';
+    sys_di     <= '0';
+    sys_iret   <= '0';
 
     case opcode is
       when "0000" => -- ADDI
@@ -195,8 +201,13 @@ begin
       when "0101" => -- J
         jump <= '1';
 
-      when "1110" => -- SYS: EI / DI / IRET, CSR logic is added in later stages
-        null;
+      when "1110" => -- SYS: EI / DI / IRET
+        case funct3 is
+          when "000" => sys_ei   <= '1';
+          when "001" => sys_di   <= '1';
+          when "010" => sys_iret <= '1';
+          when others => null;
+        end case;
 
       when "1111" => -- HALT
         halt <= '1';

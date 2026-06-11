@@ -35,8 +35,12 @@ architecture rtl of main_memory is
     8  => x"0901", -- ADDI x4, x4, 1
     9  => x"0B7F", -- ADDI x5, x5, -1
     10 => x"4A3A", -- BNE  x5, x0, LOOP (offset = -6)
-    11 => x"F000", -- HALT
-    12 => x"0001", -- f2 初值（可选）
+    11 => x"E000", -- EI
+    12 => x"F000", -- HALT
+    31 => x"FF00", -- UART 基址常量（供 LD 预载 x7，可选）
+    -- Timer ISR @ 0x0100
+    256 => x"0D81", -- ADDI x6, x6, 1
+    257 => x"E002", -- IRET
     others => (others => '0')
   );
 

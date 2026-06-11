@@ -15,9 +15,10 @@ entity if_stage is
 
     -- hazard / control
     pc_en          : in  std_logic;                    -- 1: 允许更新 PC
-    pc_src         : in  std_logic_vector(1 downto 0); -- 00: PC+1, 01: branch, 10: jump
+    pc_src         : in  std_logic_vector(1 downto 0); -- 00: PC+1, 01: branch, 10: jump, 11: redirect
     branch_target  : in  std_logic_vector(ADDR_WIDTH - 1 downto 0);
     jump_target    : in  std_logic_vector(ADDR_WIDTH - 1 downto 0);
+    pc_redirect    : in  std_logic_vector(ADDR_WIDTH - 1 downto 0);
     halt           : in  std_logic;                    -- 1: PC 保持
 
     -- i_cache interface
@@ -41,16 +42,18 @@ begin
   pc_plus1 <= pc_reg + 1;
 
   with pc_src select
-    pc_next <= unsigned(branch_target) when "01",
-               unsigned(jump_target)   when "10",
-               pc_plus1                when others;
+    pc_next <= unsigned(branch_target)  when "01",
+               unsigned(jump_target)    when "10",
+               unsigned(pc_redirect)    when "11",
+               pc_plus1                 when others;
 
   pc_reg_proc : process (clk, rst)
   begin
     if rst = '0' then
       pc_reg <= (others => '0');
     elsif rising_edge(clk) then
-      if halt = '0' and pc_en = '1' then
+      -- halt 时保持 PC；中断/IRET 重定向（pc_src=11）优先于 halt
+      if pc_en = '1' and (halt = '0' or pc_src = "11") then
         pc_reg <= pc_next;
       end if;
     end if;
