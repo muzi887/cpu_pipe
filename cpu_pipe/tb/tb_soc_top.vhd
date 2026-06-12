@@ -16,6 +16,8 @@ architecture sim of tb_soc_top is
   signal debug_epc         : std_logic_vector(15 downto 0);
   signal debug_irq_pending : std_logic;
   signal debug_status_ie   : std_logic;
+  signal debug_uart_data   : std_logic_vector(15 downto 0);
+  signal debug_led         : std_logic_vector(15 downto 0);
 
   component soc_top is
     generic (
@@ -45,8 +47,8 @@ begin
       debug_epc         => debug_epc,
       debug_irq_pending => debug_irq_pending,
       debug_status_ie   => debug_status_ie,
-      debug_uart_data   => open,
-      debug_led         => open
+      debug_uart_data   => debug_uart_data,
+      debug_led         => debug_led
     );
 
   clk <= not clk after CLK_PERIOD / 2;

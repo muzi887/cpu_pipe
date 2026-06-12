@@ -26,7 +26,7 @@ architecture rtl of main_memory is
   constant INIT_MEM : mem_array_t := (
     0  => x"0041", -- ADDI x1, x0, 1
     1  => x"0081", -- ADDI x2, x0, 1
-    2  => x"010D", -- ADDI x4, x0, 13
+    2  => x"012F", -- ADDI x4, x0, 23  ; ptr=23，数据区与指令 0～15 分离
     3  => x"0145", -- ADDI x5, x0, 5
     4  => x"1298", -- ADD  x3, x1, x2
     5  => x"38C0", -- ST   x3, 0(x4)
@@ -35,12 +35,16 @@ architecture rtl of main_memory is
     8  => x"0901", -- ADDI x4, x4, 1
     9  => x"0B7F", -- ADDI x5, x5, -1
     10 => x"4A3A", -- BNE  x5, x0, LOOP (offset = -6)
-    11 => x"E000", -- EI
-    12 => x"F000", -- HALT
-    31 => x"FF00", -- UART 基址常量（供 LD 预载 x7，可选）
+    11 => x"21DF", -- LD   x7, 31(x0)   ; x7 <- UART 基址 0xFF00
+    12 => x"3EC0", -- ST   x3, 0(x7)    ; UART <- f7=13
+    13 => x"3ED0", -- ST   x3, 16(x7)   ; GPIO LED <- 13
+    14 => x"E000", -- EI
+    15 => x"F000", -- HALT
+    31 => x"FF00", -- UART 基址常量（LD x7, 31(x0) 的数据源）
     -- Timer ISR @ 0x0100
     256 => x"0D81", -- ADDI x6, x6, 1
-    257 => x"E002", -- IRET
+    257 => x"3F80", -- ST   x6, 0(x7)    ; UART <- 中断计数
+    258 => x"E002", -- IRET
     others => (others => '0')
   );
 

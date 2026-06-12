@@ -22,7 +22,7 @@ architecture rtl of instr_memory is
   constant INIT_MEM : mem_array_t := (
     0  => x"0041", -- ADDI x1, x0, 1
     1  => x"0081", -- ADDI x2, x0, 1
-    2  => x"010D", -- ADDI x4, x0, 13
+    2  => x"012F", -- ADDI x4, x0, 23
     3  => x"0145", -- ADDI x5, x0, 5
     4  => x"1298", -- ADD  x3, x1, x2
     5  => x"38C0", -- ST   x3, 0(x4)

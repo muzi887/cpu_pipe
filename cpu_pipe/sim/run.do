@@ -78,6 +78,12 @@ add wave sim:/tb_soc_top/u_dut/u_cpu/flush_all
 add wave sim:/tb_soc_top/u_dut/u_cpu/irq_take
 add wave sim:/tb_soc_top/u_dut/u_cpu/iret_commit
 
+add wave -divider "Hazard"
+add wave sim:/tb_soc_top/u_dut/u_cpu/load_use_stall
+add wave sim:/tb_soc_top/u_dut/u_cpu/u_hazard/control_src
+add wave sim:/tb_soc_top/u_dut/u_cpu/forward_a
+add wave sim:/tb_soc_top/u_dut/u_cpu/forward_b
+
 add wave -divider "EX"
 add wave sim:/tb_soc_top/u_dut/u_cpu/ex_alu_result
 add wave sim:/tb_soc_top/u_dut/u_cpu/ex_rs
@@ -96,6 +102,12 @@ add wave -divider "D-Cache Stats"
 add wave sim:/tb_soc_top/u_dut/u_dcache/hit_count
 add wave sim:/tb_soc_top/u_dut/u_dcache/miss_count
 add wave sim:/tb_soc_top/u_dut/u_dcache/hit_rate
+
+add wave -divider "MMIO"
+add wave sim:/tb_soc_top/debug_uart_data
+add wave sim:/tb_soc_top/debug_led
+add wave sim:/tb_soc_top/u_dut/is_mmio
+add wave sim:/tb_soc_top/u_dut/mem_addr
 
 add wave -divider "SOC"
 add wave -r sim:/tb_soc_top/u_dut/*

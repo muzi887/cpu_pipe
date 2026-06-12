@@ -238,12 +238,18 @@ architecture rtl of cpu_top is
       ADDR_WIDTH : integer := 16
     );
     port (
-      bne_taken   : in  std_logic;
-      pc_src      : out std_logic_vector(1 downto 0);
-      pc_en       : out std_logic;
-      ifid_en     : out std_logic;
-      ifid_src    : out std_logic;
-      control_src : out std_logic
+      bne_taken      : in  std_logic;
+      id_ex_mem_read : in  std_logic;
+      id_ex_rd       : in  std_logic_vector(3 downto 0);
+      id_ex_valid    : in  std_logic;
+      if_id_rs1      : in  std_logic_vector(3 downto 0);
+      if_id_rs2      : in  std_logic_vector(3 downto 0);
+      load_use_stall : out std_logic;
+      pc_src         : out std_logic_vector(1 downto 0);
+      pc_en          : out std_logic;
+      ifid_en        : out std_logic;
+      ifid_src       : out std_logic;
+      control_src    : out std_logic
     );
   end component;
 
@@ -391,6 +397,7 @@ architecture rtl of cpu_top is
   signal hz_ifid_en      : std_logic;
   signal hz_ifid_src     : std_logic;
   signal hz_control_src  : std_logic;
+  signal load_use_stall  : std_logic;
   signal ifid_src        : std_logic;
   signal control_src     : std_logic;
   signal if_id_instr_in  : std_logic_vector(DATA_WIDTH - 1 downto 0);
@@ -586,12 +593,18 @@ begin
   u_hazard : hazard_unit
     generic map (ADDR_WIDTH => ADDR_WIDTH)
     port map (
-      bne_taken   => ex_branch_taken,
-      pc_src      => hz_pc_src,
-      pc_en       => hz_pc_en,
-      ifid_en     => hz_ifid_en,
-      ifid_src    => hz_ifid_src,
-      control_src => hz_control_src
+      bne_taken      => ex_branch_taken,
+      id_ex_mem_read => id_ex_mem_read,
+      id_ex_rd       => id_ex_rd,
+      id_ex_valid    => id_ex_valid,
+      if_id_rs1      => id_rs,
+      if_id_rs2      => id_rs2,
+      load_use_stall => load_use_stall,
+      pc_src         => hz_pc_src,
+      pc_en          => hz_pc_en,
+      ifid_en        => hz_ifid_en,
+      ifid_src       => hz_ifid_src,
+      control_src    => hz_control_src
     );
 
   u_irq : interrupt_controller
@@ -622,7 +635,7 @@ begin
   pc_src <= "11" when flush_all = '1' else
             "10" when id_ex_jump = '1' else hz_pc_src;
 
-  pc_en <= '0' when cache_stall = '1' else
+  pc_en <= '0' when cache_stall = '1' or load_use_stall = '1' else
            '1' when flush_all = '1' else hz_pc_en;
 
   ifid_src <= '1' when hz_ifid_src = '1' or id_ex_jump = '1' or flush_all = '1' else '0';
@@ -673,7 +686,7 @@ begin
       if_id_pc    <= (others => '0');
       if_id_instr <= (others => '0');
     elsif rising_edge(clk) then
-      if hz_ifid_en = '1' and cache_stall = '0' then
+      if hz_ifid_en = '1' and cache_stall = '0' and load_use_stall = '0' then
         if_id_pc    <= if_pc;
         if_id_instr <= if_id_instr_in;
       end if;
